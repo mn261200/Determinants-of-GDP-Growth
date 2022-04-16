@@ -1,0 +1,297 @@
+---
+title: "HK v. Singapore"
+author: "Minh Nguyen"
+date: "4/13/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# We load our libraries and the Toronto Open Data Portal
+library(openintro)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(magrittr)
+library(viridis)
+library(broom)
+library(car)
+```
+
+```{r, include = FALSE}
+# Importing the datasets
+gov_eff <- read.csv("government_effectiveness.csv", header = T)
+gov_exp <- read.csv("gov_exp.csv", header = T)
+life_male <- read.csv("life_male.csv", header = T)
+life_female <- read.csv("life_female.csv", header = T)
+gdp_grow <- read.csv("gdp_grow.csv", header = T)
+pol_stal <- read.csv("political_stability.csv", header = T)
+rol <- read.csv("rule_of_law.csv", header = T)
+sec_edu <- read.csv("sec_edu.csv", header = T)
+
+# Fixing naming format for ease of use
+names(gov_exp)[names(gov_exp) == 'ï..Country.Name'] <- 'Country.Name'
+names(life_male)[names(life_male) == 'ï..Country.Name'] <- 'Country.Name'
+names(life_female)[names(life_female) == 'ï..Country.Name'] <- 'Country.Name'
+names(gdp_grow)[names(gdp_grow) == 'ï..Country.Name'] <- 'Country.Name'
+names(sec_edu)[names(sec_edu) == 'ï..Country.Name'] <- 'Country.Name'
+names(pol_stal)[names(pol_stal) == 'X'] <- 'Country.Name'
+names(rol)[names(rol) == 'X'] <- 'Country.Name'
+names(gov_eff)[names(gov_eff) == 'X'] <- 'Country.Name'
+
+# Extracting the row with Vietnam's data 
+gov_exp <- gov_exp[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
+life_male <- life_male[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
+life_female <- life_female[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
+gdp_grow <- gdp_grow[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
+sec_edu <- sec_edu[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
+gov_eff <- gov_eff[,c(1,118)]
+pol_stal <- pol_stal[,c(1,118)]
+rol <- rol[,c(1,118)]
+
+life_avg <- life_male %>% 
+  mutate(X2018.2 = life_female$X2018) %>% 
+  na.omit() %>% 
+  mutate(life_avg = (X2018+X2018.2)/2) %>% 
+  select(Country.Name, life_avg)
+
+df <- gov_exp %>% 
+  merge(life_avg, by = "Country.Name") %>% 
+  merge(gdp_grow, by = "Country.Name") %>% 
+  merge(sec_edu, by = "Country.Name") %>% 
+  merge(pol_stal, by = "Country.Name") %>% 
+  merge(rol, by = "Country.Name") %>% 
+  merge(gov_eff, by = "Country.Name") %>% 
+  na.omit() %>% 
+  set_colnames(c("country_name","gov_exp","life_avg","gdp_grow","sec_edu","pol_stal","rol","gov_eff"))
+
+```
+
+```{r, include=FALSE}
+# Splitting into the training and test datasets
+set.seed(1)
+train_gov_exp <- df[sample(1:44, 44, replace=F), 2]
+test_gov_exp <- df[sample(45:87, 43, replace=F), 2]
+
+train_life_avg <- df[sample(1:44, 44, replace=F), 3]
+test_life_avg <- df[sample(45:87, 43, replace=F), 3]
+
+train_gdp_grow <- df[sample(1:44, 44, replace=F), 4]
+test_gdp_grow <- df[sample(45:87, 43, replace=F), 4]
+
+train_sec_edu <- df[sample(1:44, 44, replace=F), 5]
+test_sec_edu <- df[sample(45:87, 43, replace=F), 5]
+
+train_pol_stal <- df[sample(1:44, 44, replace=F), 6]
+test_pol_stal <- df[sample(45:87, 43, replace=F), 6]
+
+train_rol <- df[sample(1:44, 44, replace=F), 7]
+test_rol <- df[sample(45:87, 43, replace=F), 7]
+
+train_gov_eff <- df[sample(1:44, 44, replace=F), 8]
+test_gov_eff <- df[sample(45:87, 43, replace=F), 8]
+
+``` 
+
+```{r, include=FALSE}
+# train_exp_gs <- c(rep(NA,21),train_exp_gs)
+# train_fdi <- c(rep(NA,19),train_fdi)
+# train_imp_gs <- c(rep(NA,20),train_imp_gs)
+# train_merch_trade <- c(rep(NA,19),train_merch_trade)
+# train_tour_rcpt <- c(rep(NA,28),train_tour_rcpt)
+# gdp_nom <- na.omit(df$gdp_nom)
+train_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff)))
+``` 
+
+```{r, include=FALSE}
+# test_exp_gs <- c(rep(NA,21), test_exp_gs)
+# test_fdi <- c(rep(NA,18), test_fdi)
+# test_imp_gs <- c(rep(NA,20), test_imp_gs)
+# test_merch_trade <- c(rep(NA,18), test_merch_trade)
+# test_tour_rcpt <- c(rep(NA,28), test_tour_rcpt)
+test_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, train_pol_stal, train_rol, train_gov_eff))
+``` 
+
+# Exploratory Data Analysis
+
+## Scatterplots 
+```{r}
+par(mfrow=c(2,4))
+par(mar=c(2,2,2,2))
+
+for(i in 1:7){
+hist(train_df[,i], main=paste0("Histogram of ", names(train_df)[i]), xlab=names(train_df)[i], cex.main=0.75)
+}
+``` 
+
+```{r}
+par(mfrow=c(2,4))
+par(mar=c(2,2,2,2))
+
+for(i in c(1,2,4:7)){
+plot(train_df[,i], train_gdp_grow, main=paste0("Scatterplot of ", names(train_df)[i]), xlab=names(train_df)[i], cex.main=0.75)
+}
+``` 
+
+# Assumption Verification
+
+## First model
+```{r}
+par(mar=c(2,2,2,2))
+pairs(train_df)
+```
+
+```{r}
+train_df <- data.frame(train_df)
+model1 <- lm(train_gdp_grow ~., data=train_df)
+summary(model1)
+```
+
+```{r}
+plot(train_df$train_gdp_grow ~ fitted(model1), main="Y versus Yhat", ylab="response", xlab="yhat")
+```
+
+```{r}
+par(mfrow=c(2,4))
+
+plot(rstandard(model1)~fitted(model1), xlab="fitted", ylab="Residuals")
+for(i in c(1,2,4:7)){
+plot(rstandard(model1)~train_df[,i], xlab=names(train_df)[i], ylab="Residuals")
+}
+qqnorm(rstandard(model1))
+qqline(rstandard(model1))
+```
+
+```{r}
+vif(model1)
+```
+
+## Second Model
+
+```{r}
+cooksd <- cooks.distance(model1)
+
+sample_size <- nrow(train_df)
+plot(cooksd, pch="*", cex=2, main="Influential Observations by Cooks distance", ylab = "Cook's Distance", xlab = "Column Number (in training dataset)")  # plot cook's distance
+abline(h = 4/sample_size, lty = 2, col="red")  # add cutoff line
+text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>4/sample_size, names(cooksd),""), col="red")  # add labels
+```
+
+```{r}
+DFFITS <- dffits(model1)
+
+n <- nrow(train_df)
+p <- ncol(train_df) - 1
+
+plot(DFFITS, type = "h", cex=2, main="Influential Observations by DFFITS", ylab = "DFFITS", xlab = "Column Number (in training dataset)")
+abline(h = 2*sqrt((p+1)/n), lty = 2, col="red")
+abline(h = -2*sqrt((p+1)/n), lty = 2, col="red")
+text(x=1:length(DFFITS), y=DFFITS, labels=ifelse(abs(DFFITS)>2*sqrt((p+1)/n), names(DFFITS),""), col="red")
+```
+
+```{r}
+par(mfrow=c(2,3))
+
+DFBETAS <- data.frame(dfbetas(model1))
+
+plot(DFBETAS$train_gov_exp, type = "h", cex=2, main="DFBETAS (Government Expenses)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+abline(h = 2/sqrt(n), lty = 2, col="red")
+abline(h = -2/sqrt(n), lty = 2, col="red")
+text(x=1:length(DFBETAS$train_gov_exp), y=DFBETAS$train_gov_exp, labels=ifelse(abs(DFBETAS$train_gov_exp)>2/sqrt(n), rownames(DFBETAS),""), col="red")
+
+plot(DFBETAS$train_life_avg, type = "h", cex=2, main="DFBETAS (Life Expectancy)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+abline(h = 2/sqrt(n), lty = 2, col="red")
+abline(h = -2/sqrt(n), lty = 2, col="red")
+text(x=1:length(DFBETAS$train_life_avg), y=DFBETAS$train_life_avg, labels=ifelse(abs(DFBETAS$train_life_avg)>2/sqrt(n), rownames(DFBETAS),""), col="red")
+
+plot(DFBETAS$train_sec_edu, type = "h", cex=2, main="DFBETAS (Secondary Education)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+abline(h = 2/sqrt(n), lty = 2, col="red")
+abline(h = -2/sqrt(n), lty = 2, col="red")
+text(x=1:length(DFBETAS$train_sec_edu), y=DFBETAS$train_sec_edu, labels=ifelse(abs(DFBETAS$train_sec_edu)>2/sqrt(n), rownames(DFBETAS),""), col="red")
+
+plot(DFBETAS$V5, type = "h", cex=2, main="DFBETAS (Political Stability)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+abline(h = 2/sqrt(n), lty = 2, col="red")
+abline(h = -2/sqrt(n), lty = 2, col="red")
+text(x=1:length(DFBETAS$V5), y=DFBETAS$V5, labels=ifelse(abs(DFBETAS$V5)>2/sqrt(n), rownames(DFBETAS),""), col="red")
+
+plot(DFBETAS$V6, type = "h", cex=2, main="DFBETAS (Rule of Law)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+abline(h = 2/sqrt(n), lty = 2, col="red")
+abline(h = -2/sqrt(n), lty = 2, col="red")
+text(x=1:length(DFBETAS$V6), y=DFBETAS$V6, labels=ifelse(abs(DFBETAS$V6)>2/sqrt(n), rownames(DFBETAS),""), col="red")
+
+plot(DFBETAS$V7, type = "h", cex=2, main="DFBETAS (Government Effectiveness)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+abline(h = 2/sqrt(n), lty = 2, col="red")
+abline(h = -2/sqrt(n), lty = 2, col="red")
+text(x=1:length(DFBETAS$V7), y=DFBETAS$V7, labels=ifelse(abs(DFBETAS$V7)>2/sqrt(n), rownames(DFBETAS),""), col="red")
+```
+```
+
+```{r}
+influential <- as.numeric(names(cooksd)[(cooksd > (4/sample_size))])
+
+train_df_v2 <- train_df[-influential,]
+model2 <- lm(train_gdp_grow ~., data=train_df_v2)
+summary(model2)
+```
+
+```{r}
+par(mar=c(2,2,2,2))
+pairs(train_df_v2)
+```
+
+```{r}
+plot(train_df_v2$train_gdp_grow ~ fitted(model2), main="Y versus Yhat", ylab="response", xlab="yhat")
+```
+
+```{r}
+par(mfrow=c(2,4))
+
+plot(rstandard(model2)~fitted(model2), xlab="fitted", ylab="Residuals")
+for(i in c(1,2,4:7)){
+plot(rstandard(model2)~train_df_v2[,i], xlab=names(train_df_v2)[i], ylab="Residuals")
+}
+qqnorm(rstandard(model2))
+qqline(rstandard(model2))
+```
+
+## Third Model
+
+```{r}
+stats::step(model2, direction = "backward")
+```
+
+```{r}
+model3 <- lm(train_gdp_grow ~ V7 + train_gov_exp + train_life_avg, data = train_df_v2)
+summary(model3)
+```
+
+```{r}
+train_df_v2$log_train_gov_exp <- train_df_v2$train_gov_exp^(-0.12)
+train_df_v2$log_train_life_avg <- train_df_v2$train_life_avg^1
+train_df_v2$log_V7 <- log(train_df_v2$V7)
+model4 <- lm(train_gdp_grow ~ log_V7 + log_train_life_avg + log_train_gov_exp, data=train_df_v2)
+
+plot(train_df_v2$train_gdp_grow ~ fitted(model4), main="Y versus Yhat", ylab="response", xlab="yhat") # No change after power transform, we're sticking with the old model
+```
+
+```{r}
+par(mfrow=c(2,4))
+
+plot(rstandard(model3)~fitted(model3), xlab="fitted", ylab="Residuals")
+for(i in c(1,2,7)){
+plot(rstandard(model3)~train_df_v2[,i], xlab=names(train_df_v2)[i], ylab="Residuals")
+}
+qqnorm(rstandard(model3))
+qqline(rstandard(model3))
+```
+
+## Model Validation: Fitting model to test dataset
+
+
+# References
+
+[1] Barro, Robert J. "Determinants of economic growth: A cross-country empirical study." (1996).
