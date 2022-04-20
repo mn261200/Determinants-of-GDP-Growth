@@ -169,9 +169,9 @@ life_male <- life_male[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,1
 life_female <- life_female[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
 gdp_grow <- gdp_grow[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
 sec_edu <- sec_edu[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
-gov_eff <- gov_eff[,c(1,118)]
-pol_stal <- pol_stal[,c(1,118)]
-rol <- rol[,c(1,118)]
+gov_eff <- gov_eff[,c(1,117)]
+pol_stal <- pol_stal[,c(1,117)]
+rol <- rol[,c(1,117)]
 
 life_avg <- life_male %>% 
   mutate(X2018.2 = life_female$X2018) %>% 
@@ -179,18 +179,16 @@ life_avg <- life_male %>%
   mutate(life_avg = (X2018+X2018.2)/2) %>% 
   select(Country.Name, life_avg)
 
-
-
 df <- gov_exp %>% 
   merge(life_avg, by = "Country.Name") %>% 
   merge(gdp_grow, by = "Country.Name") %>% 
   merge(sec_edu, by = "Country.Name") %>% 
   merge(pol_stal, by = "Country.Name") %>% 
   merge(rol, by = "Country.Name") %>% 
-  merge(gov_eff, by = "Country.Name") %>% 
+  merge(gov_eff, by = "Country.Name")%>% 
   na.omit() %>% 
-  mutate(is_western = ifelse(Country.Name %in% western$Country.Name, 1, 0)) %>% 
-  set_colnames(c("country_name","gov_exp","life_avg","gdp_grow","sec_edu","pol_stal","rol","gov_eff", "is_western"))
+  set_colnames(c("country_name","gov_exp","life_avg","gdp_grow","sec_edu","pol_stal","rol","gov_eff")) %>% 
+  mutate(is_western = ifelse(country_name %in% western$Country.Name, 1, 0)) 
 
 ```
 
@@ -231,6 +229,7 @@ test_is_western <- df[sample(45:87, 43, replace=F), 9]
 # train_tour_rcpt <- c(rep(NA,28),train_tour_rcpt)
 # gdp_nom <- na.omit(df$gdp_nom)
 train_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff), train_is_western))
+train_df <- data.frame(train_df)
 ``` 
 
 ```{r, include=FALSE}
@@ -246,7 +245,7 @@ test_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train
 
 ## Data
 
-We will be using 7 predictors and 1 response in total for this dataset, with 3 predictors  from the World Bank Development Indicators (WDI), and 3 from the World Bank Governance Indicators (WGI). The final predictor is a binary variable that will indicate whether a country is Western or not.
+We will be using 6 predictors and 1 response in total for this dataset, with 3 predictors  from the World Bank Development Indicators (WDI), and 3 from the World Bank Governance Indicators (WGI). We will also interact 6 of them with a binary variable that will indicate whether a country is Western or not.
 
 | **Variable**  | **Description**                                                       	|
 |-------------------------	|-----------------------------------------------------------------------	|
@@ -288,88 +287,28 @@ plot(train_df$train_is_western, train_gdp_grow, main="Is/Is not a \n Western Cou
 
 ``` 
 
-While our response seems normally distributed, Figure 2 suggests to us that a lot of our predictors may probably be skewed. For instance, Political Stability, Rule of Law, and Government Effectiveness seem to all be right-skewed, while Life Expectancy and Government Expenses are left-skewed. This may present itself as a violation of Linearity and Homoscedasticity. 
+While our response seems normally distributed, Figure 1 suggests to us that a lot of our predictors do not have a strong linear relationship with our response. Individually, there seems to be a lot of random scatter around the center of the plots, with the exception of Government Expenses. This may present itself as a violation of Linearity and Homoscedasticity. 
 
-But this also suggests to us that some predictors may be repairable, as some of the skews seem to be influenced by outlier points. For instance, Government Expenses, Government Effectiveness, and Political Stability all seem to have points that stray far from the main cluster. We will check whether these outlier points are influential, so that we can decide whether to remove them later. 
+Government Expenses in particular may be repairable, as some it appears that there around 2-3 leverage points. We will check whether these leverage points are influential, so that we can decide whether to remove them or not.
 
-## First Model
 
-We first fit a model that utilizes all 7 of our predictors. Additionally, we interact 6 numerical predictors in the model with 1 binary predictor as mentioned in our Methods section. This gives us a total of 13 predictors. Before interpreting the results of our model, we must verify it's assumptions.
+## Identifying and addressing Influential Observations
 
-When we plot every predictor in our dataset against the other (see Appendix 1), aside from the categorical variables, no strong linear relationships between predictors appears to exist. This suggests to us that Condition 2 appears to be satisfied. Furthermore, our Residuals vs. Fitted plot (see Appendix 2) also exhibits random scatter around a linear function, which suggests to us that Condition 1 is satisfied. 
+We will utilize the tools mentioned in our Methods section to see whether the aforementioned leverage points are influential. After constructing a model containing our 6 main predictors, Figure 2 represents the results of running Cook's Distance, DFFITS, and DFBETAS on our model. 
 
-Our Residuals (see Appendix 3) show us that while most predictors seem to have random scatter, the problems discussed in Figure 2 arise again. Namely, the residuals of Government Expenses and Political Stability seem to be heavily influenced by a handful of observations. This presents itself as a possible violation of Linearity and Homoscedasticity. But rather than doing Box Cox Transformations, Figure 2 suggests to us that we should at least attempt to check if they are influential observations before doing anything else.
+We can see that observation 24 and 32 appear in at least 4 of the 8 plots. While not a hard rule, appearing in half or more of the plots is convincing evidence for us to remove them. Additionally, due to the massive effect observations 4 and 31 has on Cook's Distance, DFFITS, and some DFBETAS, we will remove them as well. 
 
-## Identifying Influential Observations
-
-Will utilize the tools mentioned in our Methods section to see whether the aforementioned outlier points are influential. Below are the results of running, DFFITS, and DFBETAS on our model. 
-
-We can see that observation 24 and 32 appear in at least 5 of the 8 plots. Using a soft rule of greater than half, this is convincing enough for us to remove them. 
-
-```{r, echo=FALSE, fig.cap="Pairs plot of all predictors in our dataset"}
-par(mar=c(2,2,2,2))
-train_df_pairs <- train_df[,-3]
-colnames(train_df_pairs) <- c("Gov. \n Exp.", "Life Exp.", "Sec. Edu.", "Pol. Stab", "Rule of \n Law", "Gov. \n Eff.","Is Western")
-pairs(train_df_pairs)
-```
-
-```{r, echo=FALSE}
-train_df <- data.frame(train_df)
-model1 <- lm(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western, data=train_df)
+```{r, include=FALSE}
+model1 <- lm(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western - train_is_western, data=train_df)
 summary(model1)
 ```
 
-```{r, echo=FALSE}
-plot(train_df$train_gdp_grow ~ fitted(model1), main="Response vs. Fitted values", ylab="response", xlab="Fitted values for First Model")
-```
-
-```{r, echo=FALSE}
-par(mfrow=c(2,4))
-
-plot(rstandard(model1)~train_df$train_gov_exp, xlab="Government Expenses \n (% of GDP)", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model1)~train_df$train_life_avg, xlab="Life Expectancy \n (in years)", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model1)~train_df$train_sec_edu, xlab="Proportion of population \n with Secondary Education", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model1)~train_df$V5, xlab="Political Stability", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model1)~train_df$V6, xlab="Rule of Law", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model1)~train_df$V7, xlab="Government Effectiveness", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model1)~train_df$train_is_western, xlab="Is/Is not a \n Western Country", cex.main=1.25, ylab="Residuals")
-
-qqnorm(rstandard(model1))
-qqline(rstandard(model1))
-```
-
-```{r, echo=FALSE}
+```{r, include=FALSE}
 vif(model1)
 ```
 
-## High Multicollinearity
 
-An important sidenote is that with the inclusion of interaction terms, multicollinearity increases by an extraordinary amount for each of our 13 predictors. However, this is to be expected, as 
-
-
-## Second Model
-
-```{r, echo=FALSE}
-# par(mfrow=c(1,2))
-# 
-# cooksd <- cooks.distance(model1)
-
-# n <- nrow(train_df)
-# p <- ncol(train_df) - 1
-
-# plot(cooksd, type = "h", cex=2, main="Influential Obs. by Cook's ", ylab = "Cook's Distance", xlab = "Column Number (in training dataset)")  # plot cook's distance
-# abline(h = qf(0.5, p+1, n-p-1), lty = 2, col="red")  # add cutoff line
-# text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>qf(0.5, p+1, n-p-1), names(cooksd),""), col="red")  
-
-```
-
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.cap="Influential observations by Cook's Distance, DFFITS and DFBETAS"}
 par(mfrow=c(2,4))
 
 DFBETAS <- data.frame(dfbetas(model1))
@@ -422,37 +361,26 @@ text(x=1:length(DFBETAS$V7), y=DFBETAS$V7, labels=ifelse(abs(DFBETAS$V7)>2/sqrt(
 
 ```
 
+## Verifying Assumptions
+
+Now that we've removed the influential observations, we will verify the assumptions of our model.
+
+When we plot every predictor in our dataset against the other (see Appendix 1), aside from the categorical variables, no strong linear relationships between predictors appears to exist. This suggests to us that Condition 2 appears to be satisfied. Furthermore, our Residuals vs. Fitted plot (see Appendix 2) also exhibits random scatter around a linear function, which suggests to us that Condition 1 is satisfied. 
+
+Our Residuals (see Appendix 3) show us that while most predictors seem to have random scatter, the problems discussed in Figure 1 arise again. Namely, the residuals of Government Expenses and Political Stability seem to be heavily influenced by a handful of observations. This presents itself as a possible violation of Linearity and Homoscedasticity. But it does not seem that doing Box Cox Transformations will solve the problem. Rather, Figure 1 suggests to us that we should at least attempt to check if they are influential observations before doing anything else.
+
+## High Multicollinearity
+
+An important sidenote is that with the inclusion of interaction terms, multicollinearity increases by an extraordinary amount for each of our 13 predictors. However, this is to be expected, as interaction terms are products of other predictors in our model. Additionally, we are more interested in adjusting for the effects of our interaction terms, rather than the effects themselves. If we check the VIF's of our 7 original predictors, we see that none of them are multicollineated.
+
 ```{r, echo=FALSE}
 # influential <- as.numeric(names(cooksd)[(cooksd > (4/n))])
 
 # Observation 4, 24, and 32 appear in at least 5 of the 8 plots, so ~2/3rds. Appearance in more than half of the plots is convincing enough to remove them.
-train_df_v2 <- train_df[-c(4,24,32),]
+train_df_v2 <- train_df[-c(4,14,24,31,40),]
 model2 <- lm(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western, data=train_df_v2)
 summary(model2)
 ```
-
-```{r, echo=FALSE}
-par(mar=c(2,2,2,2))
-train_df_v2_pairs <- train_df_v2
-colnames(train_df_v2_pairs) <- c("Gov. \n Exp.", "Life Exp.", "GDP", "Sec. Edu.", "Pol. Stab.", "Rule of \n Law", "Gov. \n Eff.","Is Western")
-pairs(train_df_v2_pairs)
-```
-
-```{r, echo=FALSE}
-plot(train_df_v2$train_gdp_grow ~ fitted(model2), main="Y versus Yhat", ylab="response", xlab="yhat")
-```
-
-```{r, echo=FALSE}
-par(mfrow=c(2,4))
-
-plot(rstandard(model2)~fitted(model2), xlab="fitted", ylab="Residuals")
-for(i in c(1,2,4:7)){
-plot(rstandard(model2)~train_df_v2[,i], xlab=names(train_df_v2)[i], ylab="Residuals")
-}
-qqnorm(rstandard(model2))
-qqline(rstandard(model2))
-```
-
 
 
 ## Third Model
@@ -462,50 +390,60 @@ stats::step(model2, direction = "backward")
 ```
 
 ```{r, echo=FALSE}
-apss <- regsubsets(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western, data=train_df_v2, nvmax = 13)
-summary(apss)
-```
-
-```{r, echo=FALSE}
-which_best <- summary(apss)
-data.frame(
-  Adj.R2 = which.max(which_best$adjr2),
-  BIC = which.min(which_best$bic),
-  R2 = which.max(which_best$rsq)
-)
-```
-
-Notice that since the max Adjusted $R^2$ score is at 8 predictors, we start to get penalized for adding more than 8 predictors, each of which don't explain an adequate amount of variation.  Thus, we will attempt to keep our model at 8 predictors or less. Since the model with maximum BIC has 5 predictors, our these will be our two candidate models that we will compare. 
-
-```{r, echo=FALSE}
-# model_r2 <- lm(train_gdp_grow ~ train_gov_exp + train_life_avg + train_is_western + V6 + V7 + train_is_western:V5 + train_is_western:V6 + train_is_western:V7, data = train_df_v2)
-# 
-# model_bic <- lm(train_gdp_grow ~ train_gov_exp:train_is_western + train_is_western:train_sec_edu + train_is_western:V5 + train_is_western:V7 + train_life_avg, data = train_df_v2)
-
-model3 <- lm(train_gdp_grow ~ train_gov_exp + V5 + V7 + train_is_western:train_sec_edu + train_is_western:V6 + train_life_avg, data = train_df_v2)
+model3 <- lm(train_gdp_grow ~ train_gov_exp:train_is_western + train_is_western:V5 + train_life_avg + train_is_western:train_sec_edu, data = train_df_v2)
 
 summary(model3) # The effects of Secondary Education on GDP Growth Rate is higher by 0.04 if the country is not Western
 ```
 
-```{r, echo=FALSE}
-train_df_v2$log_train_gov_exp <- train_df_v2$train_gov_exp^(-0.12)
-train_df_v2$log_train_life_avg <- train_df_v2$train_life_avg^1
-train_df_v2$log_V7 <- log(train_df_v2$V7) 
-model4 <- lm(train_gdp_grow ~ log_V7 + log_train_life_avg + log_train_gov_exp, data=train_df_v2)
 
-plot(train_df_v2$train_gdp_grow ~ fitted(model4), main="Y versus Yhat", ylab="response", xlab="yhat") # No change after power transform, we're sticking with the old model
+```{r, echo=FALSE}
+plot(train_df_v2$train_gdp_grow ~ fitted(model3), main="Y versus Yhat", ylab="response", xlab="yhat")
 ```
 
 ```{r, echo=FALSE}
 par(mfrow=c(2,4))
 
-plot(rstandard(model3)~fitted(model3), xlab="fitted", ylab="Residuals")
-for(i in c(2,7,8)){
-plot(rstandard(model3)~train_df_v2[,i], xlab=names(train_df_v2)[i], ylab="Residuals")
-}
+plot(rstandard(model3)~train_df_v2$train_gov_exp, main="Government Expenses", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model3)~train_df_v2$train_life_avg, main="Life Expectancy", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model3)~train_df_v2$train_sec_edu, main="Secondary Education", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model3)~train_df_v2$V5, main="Political Stability", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model3)~train_df_v2$V6, main="Rule of Law", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model3)~train_df_v2$V7, main="Government Effectiveness", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model3)~train_df_v2$train_is_western, main="Is Western", cex.main=1.25, ylab="Residuals")
+
 qqnorm(rstandard(model3))
 qqline(rstandard(model3))
 ```
+
+```{r, echo=FALSE}
+boxCox(model3)
+train_df_v2_transform <- train_df_v2[,-c(3)]
+
+for (i in 1:39){
+  train_df_v2_transform$V5[i] <- train_df_v2_transform$V5[i] + 2.6
+  train_df_v2_transform$V6[i] <- train_df_v2_transform$V6[i] + 2.6
+  train_df_v2_transform$V7[i] <- train_df_v2_transform$V7[i] + 2.6
+  train_df_v2_transform$train_is_western[i] <- train_df_v2_transform$train_is_western[i] + 0.5
+}
+
+p <- powerTransform(cbind(train_df_v2_transform))
+summary(p)
+```
+
+```{r, echo=FALSE}
+
+train_df_v2$log_train_gov_exp <- log(train_df_v2$train_gov_exp)
+model4 <- lm(train_gdp_grow ~ log_train_gov_exp + V5 + V7 + train_is_western:train_sec_edu + train_is_western:V6 + train_life_avg, data = train_df_v2)
+
+plot(train_df_v2$train_gdp_grow ~ fitted(model4), main="Y versus Yhat", ylab="response", xlab="yhat") # No change after power transform, we're sticking with the old model
+```
+
 
 ```{r, echo=FALSE}
 anova(model2, model3)
@@ -519,6 +457,73 @@ anova(model2, model3)
 Too little observations, backwards aic only explores one possible outcome and not all, should have used corrected aic since regular aic is only good when n/p+2 <= 40, plots do not include interaction terms as well, did not calculate vif of the models 
 
 # Appendix
+
+Appendix 1:
+```{r, echo=FALSE, fig.cap="Pairs plot of all predictors in our dataset"}
+par(mar=c(2,2,2,2))
+train_df_pairs <- train_df[,-3]
+colnames(train_df_pairs) <- c("Gov. \n Exp.", "Life Exp.", "Sec. Edu.", "Pol. Stab", "Rule of \n Law", "Gov. \n Eff.","Is Western")
+pairs(train_df_pairs)
+```
+
+```{r, echo=FALSE}
+par(mar=c(2,2,2,2))
+train_df_v2_pairs <- train_df_v2
+colnames(train_df_v2_pairs) <- c("Gov. \n Exp.", "Life Exp.", "GDP", "Sec. Edu.", "Pol. Stab.", "Rule of \n Law", "Gov. \n Eff.","Is Western")
+pairs(train_df_v2_pairs)
+```
+
+Appendix 2:
+```{r, echo=FALSE}
+plot(train_df$train_gdp_grow ~ fitted(model1), main="Response vs. Fitted values", ylab="response", xlab="Fitted values for First Model")
+```
+
+```{r, echo=FALSE}
+plot(train_df_v2$train_gdp_grow ~ fitted(model2), main="Y versus Yhat", ylab="response", xlab="yhat")
+```
+
+Appendix 3:
+```{r, echo=FALSE}
+par(mfrow=c(2,4))
+
+plot(rstandard(model1)~train_df$train_gov_exp, xlab="Government Expenses \n (% of GDP)", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$train_life_avg, xlab="Life Expectancy \n (in years)", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$train_sec_edu, xlab="Proportion of population \n with Secondary Education", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$V5, xlab="Political Stability", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$V6, xlab="Rule of Law", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$V7, xlab="Government Effectiveness", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$train_is_western, xlab="Is/Is not a \n Western Country", cex.main=1.25, ylab="Residuals")
+
+qqnorm(rstandard(model1))
+qqline(rstandard(model1))
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(2,4))
+
+plot(rstandard(model2)~train_df_v2$train_gov_exp, main="Government Expenses", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model2)~train_df_v2$train_life_avg, main="Life Expectancy", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model2)~train_df_v2$train_sec_edu, main="Secondary Education", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model2)~train_df_v2$V5, main="Political Stability", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model2)~train_df_v2$V6, main="Rule of Law", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model2)~train_df_v2$V7, main="Government Effectiveness", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model2)~train_df_v2$train_is_western, main="Is Western", cex.main=1.25, ylab="Residuals")
+
+qqnorm(rstandard(model2))
+qqline(rstandard(model2))
+```
 
 # References
 
