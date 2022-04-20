@@ -1,5 +1,5 @@
 ---
-title: "HK v. Singapore"
+title: "Finding the strongest determinants of economic growth"
 author: "Minh Nguyen"
 date: "4/13/2022"
 output: pdf_document
@@ -20,7 +20,126 @@ library(magrittr)
 library(viridis)
 library(broom)
 library(car)
+library(leaps)
+library(MuMIn)
 ```
+
+# Introduction
+
+The "Asian Tigers", is a name that is given to the set of countries that achieved immense economic growth between the early 1960's to late 1990's. These countries are South Korea, Singapore, Hong Kong, and Taiwan. Many economists of the period were interested in the factors that led to their growth. They (along with Japan) were among the first few countries outside the Western sphere of influence to have achieved a level of wealth equivalent to (or surpassing) many Western countries. Prior to that time period, wealth was concentrated in the countries of North America and Europe due to the Industrial Revolution, with vast areas of the world living under abject poverty [source].
+
+![](countries.png)
+*A depiction of major civilizations by political scientist Samuel P. Huntington. The West is depicated in blue.*
+
+It's no surprise then, that economic growth is an incredibly important topic for policy-makers outside The West, as it is a critical determinant of the future development of their country. Generally, growth rate is measured by the percentage change of *Gross Domestic Product (GDP), which is the total value of all goods and services produced by a country*.
+
+In a landmark paper in 1996, Robert J. Barro conducted an empirical study on 100 countries between 1960-1990 to find the strongest determinants of GDP growth among the given sample. He concluded that for a fixed value of GDP per capita (which is GDP/total population of the country), growth rate is increased by "higher initial schooling, life expectancy, lower fertility, lower government consumption, better maintenance of the rule of law, lower inflation, and improvements in the terms of trade" [1]. Using data from the World Bank Development [2] and Governance Indicators [3], we attempt to conduct a similar study using Barro's criteria of economic growth. Thus, *we aim to build a linear regression model that strikes a balance between simplicity, interpretability, and accuracy. Our model should measure the rate of GDP Growth among countries using predictors similar to Barro's. Our goal is to determine the strongest drivers of economic growth between Western and non-Western countries*.
+
+# Methods
+
+## Model Violations and Diagnostics
+
+Since we are interested in seeing whether being a Western country affects GDP growth, we will be using a linear regression model with $p$ number of predictors and sample size $n$. Thus, the general form of our model is defined as: 
+
+$$
+\hat{Y}_{GDPGrowth} = \beta_0 + \sum\limits_{i=1}^{n} \beta_{i}x_{i} + \sum\limits_{i=1}^{n} \beta_{i}x_{i}x_{k} + \epsilon
+$$
+
+The model can be broken down as follows:
+
+* $\hat{Y}_{GDPGrowth}$: The response value for our model
+* $x_k$: Our interaction term for some fixed $k \in \{1,...,n\}$
+* $\sum\limits_{i=1}^{n} \beta_{i}x_{i}$: The $n$ number of predictors and their corresponding coefficients in our model
+* $\hat{\beta_{0}}$: Our intercept value
+
+
+### Assumptions of Linear Regression Models
+
+Linear Regression Models require 4 assumptions to be satisfied to ensure that it makes sense to model our sample. These assumptions are as follows:
+
+1. **Linearity**: The relationship between each of our predictors $x_i$ and our response $\hat{Y}$ appears linear. 
+2. **Homoscedasticity**: All our sample observations should be spread out
+3. **Independence**: All our sample observations are independent/uncorrelated with each other
+4. **Normality**: All our sample observations should be normally distributed
+
+In addition to the 4 assumptions, 2 conditions are also checked to help us understand any limitations of our model 
+
+5. **Condition 1**: The expected value of the mean of the response is a single function of a linear combination of the predictors
+6. **Condition 2**: The expected value of predictor A conditional on some predictor B is a linear function of predictor A
+
+### Checking for Assumption Violations using Residual Plots
+
+We can check for violations in each assumption using Residual plots of each predictor. Generally, we verify Conditions 1 and 2 first before we check for violations in Assumptions 1-4. If either one of the Conditions are violated and any one of the four Assumptions are violated, all we can say is that a wrong model has been fit and nothing more. However, if no Assumptions are violated, then Condition 1 is likely satisfied, and violations of Condition 2 (if there are any) will be considered a non-problematic limitation (this is not a hard rule).
+
+When we look for assumption violations in Residuals, we look for the following patterns:
+
+1. **Linearity**: Any systematic pattern in the residuals 
+2. **Homoscedasticity**: Any systematic pattern appears, especially a fanning pattern where residuals become more/less spread out
+3. **Independence**: Two or more clusters of residuals that are clearly separate from each other
+4. **Normality**: Usually checked with a special type of Residual plot called a QQ Plot. Violations appear when the QQ plot exhibits any non-linear abnormalities (i.e. points trailing upwards/downwards at the ends, deviations within the middle of the line)
+
+The additional conditions are not checked using residuals, but rather with specific plots.
+
+5. **Condition 1**: Checked by plotting the response $Y$ against the Fitted values of our model. Violations appear when there is non-random scatter around non-linear functions (i.e. scatter around a curve, fanning out pattern). 
+6. **Condition 2**: Checked by plotting each variable in our dataset against every other variable. Potential violations appear if there is any distinct relationship between one predictor, or another predictor, or the response. 
+
+### Fixing non-Homoscedasticity
+
+Violations in Homoscedasticity can often be fixed using *Variance Stabilizing Transformations (VST)*. VST's are functions that can be applied to the response of a linear model, which usually removes the dependence of error variance on the model's predictor values. In practice, this usually just means running a linear model with $log(Y)$ or $\sqrt{Y}$ as our response
+
+### Fixing non-Linearity and non-Normality
+
+Violations in Linearity and Normality can occasionally be fixed using *Box Cox Transformations*. A Box Cox Transformation is a type of power transformation that can be performed either on the response or the predictors of a model. For most practical uses, this involves either taking the $log$ of our response and predictors or raising them to a power:
+
+Box Cox Transformation for a response $Y$:
+
+$$
+\psi_M(Y,\lambda) = \begin{cases} 
+Y^{\lambda} & \lambda \neq 0 \\
+log(Y) & \lambda = 0 \\
+\end{cases}
+$$
+
+Box Cox Transformation for some predictor $x_i$:
+
+$$
+\psi_M(x_i,\lambda) = \begin{cases} 
+x_i^{\lambda} & \lambda \neq 0 \\
+log(x_i) & \lambda = 0 \\
+\end{cases}
+$$
+
+
+In either case, our calculations will depend on $\lambda$, which is called the power parameter. This value is provided to us for each predictor and response in R. Depending on what power parameter a variable has, we will attempt to transform it in accordance with the above functions.
+
+Note that power transformations are more of a band-aid for our model rather than a proper fix. Too many power transforms can make a model un-interpretable to the average policy-maker, hence we will only use it for serious violations. 
+
+## Model Selection
+
+### Adjusted Coefficient of Determination
+
+The Adjusted Coefficient of Determination ($R^2_{adj}$) is often used as a way to see whether models with different numbers of predictors can explain variation in the sample better than others. It is formally represented by the equation below:
+
+$$
+R^2_{adj} = 1-\frac{\left( \frac{RSS}{n-p-1} \right)}{\left( \frac{SST}{n-1} \right)} 
+$$
+
+The equation can be broken down as follows:
+
++ **RSS**: The Residual Sum of Squares for our model. This is the amount of variation left over after fitting our regression model
++ **SST**: The Sum of Squares Total is the original amount of variation present in the sample.
++ **n**: Sample size of our population
++ **p**: Number of predictors in our model
+
+When comparing models, a higher $R^2_{adj}$ is generally better. Notice that as if $p$ increases and there is no substantial change in $RSS$, then $R^2_{adj}$ can go down for each additional predictor. This makes the metric very useful for us in comparing simple and complex models, as it penalizes models that have too many predictors given the amount of variations it explains.
+
+### Backward Selection using AIC
+
+The AIC is a model selection criteria that helps decide the best predictors for a model. Backward Selection using AIC is a type of automated model selection method that incrementally chooses the best model based on the reduction of the AIC score. 
+
+### Variance Inflation Factor (VIF)
+
+### Techniques to find Influential Observations
 
 ```{r, include = FALSE}
 # Importing the datasets
@@ -32,6 +151,7 @@ gdp_grow <- read.csv("gdp_grow.csv", header = T)
 pol_stal <- read.csv("political_stability.csv", header = T)
 rol <- read.csv("rule_of_law.csv", header = T)
 sec_edu <- read.csv("sec_edu.csv", header = T)
+western <- read.csv("western.csv", header = T)
 
 # Fixing naming format for ease of use
 names(gov_exp)[names(gov_exp) == 'ï..Country.Name'] <- 'Country.Name'
@@ -59,6 +179,8 @@ life_avg <- life_male %>%
   mutate(life_avg = (X2018+X2018.2)/2) %>% 
   select(Country.Name, life_avg)
 
+
+
 df <- gov_exp %>% 
   merge(life_avg, by = "Country.Name") %>% 
   merge(gdp_grow, by = "Country.Name") %>% 
@@ -67,7 +189,8 @@ df <- gov_exp %>%
   merge(rol, by = "Country.Name") %>% 
   merge(gov_eff, by = "Country.Name") %>% 
   na.omit() %>% 
-  set_colnames(c("country_name","gov_exp","life_avg","gdp_grow","sec_edu","pol_stal","rol","gov_eff"))
+  mutate(is_western = ifelse(Country.Name %in% western$Country.Name, 1, 0)) %>% 
+  set_colnames(c("country_name","gov_exp","life_avg","gdp_grow","sec_edu","pol_stal","rol","gov_eff", "is_western"))
 
 ```
 
@@ -95,6 +218,9 @@ test_rol <- df[sample(45:87, 43, replace=F), 7]
 train_gov_eff <- df[sample(1:44, 44, replace=F), 8]
 test_gov_eff <- df[sample(45:87, 43, replace=F), 8]
 
+train_is_western <- df[sample(1:44, 44, replace=F), 9]
+test_is_western <- df[sample(45:87, 43, replace=F), 9]
+
 ``` 
 
 ```{r, include=FALSE}
@@ -104,7 +230,7 @@ test_gov_eff <- df[sample(45:87, 43, replace=F), 8]
 # train_merch_trade <- c(rep(NA,19),train_merch_trade)
 # train_tour_rcpt <- c(rep(NA,28),train_tour_rcpt)
 # gdp_nom <- na.omit(df$gdp_nom)
-train_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff)))
+train_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff), train_is_western))
 ``` 
 
 ```{r, include=FALSE}
@@ -113,141 +239,210 @@ train_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, trai
 # test_imp_gs <- c(rep(NA,20), test_imp_gs)
 # test_merch_trade <- c(rep(NA,18), test_merch_trade)
 # test_tour_rcpt <- c(rep(NA,28), test_tour_rcpt)
-test_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, train_pol_stal, train_rol, train_gov_eff))
+test_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff), train_is_western))
 ``` 
 
-# Exploratory Data Analysis
+# Results
 
-## Scatterplots 
-```{r}
+## Data
+
+We will be using 7 predictors and 1 response in total for this dataset, with 3 predictors  from the World Bank Development Indicators (WDI), and 3 from the World Bank Governance Indicators (WGI). The final predictor is a binary variable that will indicate whether a country is Western or not.
+
+| **Variable**  | **Description**                                                       	|
+|-------------------------	|-----------------------------------------------------------------------	|
+| **Government Expenses (% of GDP)** | The amount of money the state expends in maintaining government operations in goods and services. This includes (but is not limited to) wages for public sector employees, social and medical benefits, subsidies, and grants. |
+| **Life Expectancy (in years)**| The average life expectancy of a citizen in the country. |
+| **Secondary Education (in years)** | The proportion of the total population that have attained a secondary education |
+| **Political Stability**	| An estimate of the likelihood of political instability and politically motivated violence. Values range from -2.5 to 2.5, with the former indicating complete instability and the latter indicating complete stability in governance |
+| **Rule of Law** | An estimate of the perceptions that citizens have about the laws of their country and their willingness to abide by them. Values range from -2.5 to 2.5, with the former indicating no respect for the law and the latter indicating complete obedience to the law	|
+| **Government Effectiveness** | An estimate of the perceptions that citizens have about the quality of civil and public service, the quality of policy formulations and implementations, and the governments commitments to such policies |
+| **Is/Is not Western** | A binary variable indicating whether a country is Western or not. 1 indicates it is Western, 0 indicates it is not. The countries that are considered Western are depicted in blue in Figure 1 |
+
+Table: Description of the Important Variables in WGI and WDI
+
+Our dataset has a total of 88 observations, which we will split into two datasets of 44 observations each: a *training dataset* and a *test dataset*. We will conduct all of our model selection and diagnostics work on the training dataset, and the final model will be validated on the test dataset. 
+
+## Visualizations of Variables
+
+Plotting the scatterplot of all our variables results in the following figure below.
+
+```{r, echo=FALSE, fig.cap="Scatterplot of every predictor plotted against the response"}
 par(mfrow=c(2,4))
-par(mar=c(2,2,2,2))
+par(mar=c(2,2,4,2))
 
-for(i in 1:7){
-hist(train_df[,i], main=paste0("Histogram of ", names(train_df)[i]), xlab=names(train_df)[i], cex.main=0.75)
-}
+hist(train_df$train_gdp_grow, main="GDP Growth Rate \n as % of total GDP", cex.main=1.25)
+
+plot(train_df$train_gov_exp, train_gdp_grow, main="Government Expenses \n (% of GDP)", cex.main=1.25)
+
+plot(train_df$train_life_avg, train_gdp_grow, main="Life Expectancy \n (in years)", cex.main=1.25)
+
+plot(train_df$train_sec_edu,  train_gdp_grow,main="Proportion of population \n with Secondary Education", cex.main=1.25)
+
+plot(train_df$V5,  train_gdp_grow,main="Political Stability", cex.main=1.25)
+
+plot(train_df$V6, train_gdp_grow, main="Rule of Law", cex.main=1.25)
+
+plot(train_df$V7, train_gdp_grow, main="Government \n Effectiveness", cex.main=1.25)
+
+plot(train_df$train_is_western, train_gdp_grow, main="Is/Is not a \n Western Country", cex.main=1.25)
+
 ``` 
 
-```{r}
-par(mfrow=c(2,4))
+While our response seems normally distributed, Figure 2 suggests to us that a lot of our predictors may probably be skewed. For instance, Political Stability, Rule of Law, and Government Effectiveness seem to all be right-skewed, while Life Expectancy and Government Expenses are left-skewed. This may present itself as a violation of Linearity and Homoscedasticity. 
+
+But this also suggests to us that some predictors may be repairable, as some of the skews seem to be influenced by outlier points. For instance, Government Expenses, Government Effectiveness, and Political Stability all seem to have points that stray far from the main cluster. We will check whether these outlier points are influential, so that we can decide whether to remove them later. 
+
+## First Model
+
+We first fit a model that utilizes all 7 of our predictors. Additionally, we interact 6 numerical predictors in the model with 1 binary predictor as mentioned in our Methods section. This gives us a total of 13 predictors. Before interpreting the results of our model, we must verify it's assumptions.
+
+When we plot every predictor in our dataset against the other (see Appendix 1), aside from the categorical variables, no strong linear relationships between predictors appears to exist. This suggests to us that Condition 2 appears to be satisfied. Furthermore, our Residuals vs. Fitted plot (see Appendix 2) also exhibits random scatter around a linear function, which suggests to us that Condition 1 is satisfied. 
+
+Our Residuals (see Appendix 3) show us that while most predictors seem to have random scatter, the problems discussed in Figure 2 arise again. Namely, the residuals of Government Expenses and Political Stability seem to be heavily influenced by a handful of observations. This presents itself as a possible violation of Linearity and Homoscedasticity. But rather than doing Box Cox Transformations, Figure 2 suggests to us that we should at least attempt to check if they are influential observations before doing anything else.
+
+## Identifying Influential Observations
+
+Will utilize the tools mentioned in our Methods section to see whether the aforementioned outlier points are influential. Below are the results of running, DFFITS, and DFBETAS on our model. 
+
+We can see that observation 24 and 32 appear in at least 5 of the 8 plots. Using a soft rule of greater than half, this is convincing enough for us to remove them. 
+
+```{r, echo=FALSE, fig.cap="Pairs plot of all predictors in our dataset"}
 par(mar=c(2,2,2,2))
-
-for(i in c(1,2,4:7)){
-plot(train_df[,i], train_gdp_grow, main=paste0("Scatterplot of ", names(train_df)[i]), xlab=names(train_df)[i], cex.main=0.75)
-}
-``` 
-
-# Assumption Verification
-
-## First model
-```{r}
-par(mar=c(2,2,2,2))
-pairs(train_df)
+train_df_pairs <- train_df[,-3]
+colnames(train_df_pairs) <- c("Gov. \n Exp.", "Life Exp.", "Sec. Edu.", "Pol. Stab", "Rule of \n Law", "Gov. \n Eff.","Is Western")
+pairs(train_df_pairs)
 ```
 
-```{r}
+```{r, echo=FALSE}
 train_df <- data.frame(train_df)
-model1 <- lm(train_gdp_grow ~., data=train_df)
+model1 <- lm(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western, data=train_df)
 summary(model1)
 ```
 
-```{r}
-plot(train_df$train_gdp_grow ~ fitted(model1), main="Y versus Yhat", ylab="response", xlab="yhat")
+```{r, echo=FALSE}
+plot(train_df$train_gdp_grow ~ fitted(model1), main="Response vs. Fitted values", ylab="response", xlab="Fitted values for First Model")
 ```
 
-```{r}
+```{r, echo=FALSE}
 par(mfrow=c(2,4))
 
-plot(rstandard(model1)~fitted(model1), xlab="fitted", ylab="Residuals")
-for(i in c(1,2,4:7)){
-plot(rstandard(model1)~train_df[,i], xlab=names(train_df)[i], ylab="Residuals")
-}
+plot(rstandard(model1)~train_df$train_gov_exp, xlab="Government Expenses \n (% of GDP)", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$train_life_avg, xlab="Life Expectancy \n (in years)", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$train_sec_edu, xlab="Proportion of population \n with Secondary Education", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$V5, xlab="Political Stability", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$V6, xlab="Rule of Law", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$V7, xlab="Government Effectiveness", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model1)~train_df$train_is_western, xlab="Is/Is not a \n Western Country", cex.main=1.25, ylab="Residuals")
+
 qqnorm(rstandard(model1))
 qqline(rstandard(model1))
 ```
 
-```{r}
+```{r, echo=FALSE}
 vif(model1)
 ```
 
+## High Multicollinearity
+
+An important sidenote is that with the inclusion of interaction terms, multicollinearity increases by an extraordinary amount for each of our 13 predictors. However, this is to be expected, as 
+
+
 ## Second Model
 
-```{r}
-cooksd <- cooks.distance(model1)
+```{r, echo=FALSE}
+# par(mfrow=c(1,2))
+# 
+# cooksd <- cooks.distance(model1)
 
-sample_size <- nrow(train_df)
-plot(cooksd, pch="*", cex=2, main="Influential Observations by Cooks distance", ylab = "Cook's Distance", xlab = "Column Number (in training dataset)")  # plot cook's distance
-abline(h = 4/sample_size, lty = 2, col="red")  # add cutoff line
-text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>4/sample_size, names(cooksd),""), col="red")  # add labels
+# n <- nrow(train_df)
+# p <- ncol(train_df) - 1
+
+# plot(cooksd, type = "h", cex=2, main="Influential Obs. by Cook's ", ylab = "Cook's Distance", xlab = "Column Number (in training dataset)")  # plot cook's distance
+# abline(h = qf(0.5, p+1, n-p-1), lty = 2, col="red")  # add cutoff line
+# text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>qf(0.5, p+1, n-p-1), names(cooksd),""), col="red")  
+
 ```
 
-```{r}
-DFFITS <- dffits(model1)
+```{r, echo=FALSE}
+par(mfrow=c(2,4))
+
+DFBETAS <- data.frame(dfbetas(model1))
 
 n <- nrow(train_df)
 p <- ncol(train_df) - 1
 
-plot(DFFITS, type = "h", cex=2, main="Influential Observations by DFFITS", ylab = "DFFITS", xlab = "Column Number (in training dataset)")
+cooksd <- cooks.distance(model1)
+
+plot(cooksd, type = "h", cex=2, main="Influential Obs. by \n Cook's", ylab = "Cook's Distance", xlab = "Row Number (in training dataset)")  # plot cook's distance
+abline(h = qf(0.5, p+1, n-p-1), lty = 2, col="red")  # add cutoff line
+text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>qf(0.5, p+1, n-p-1), names(cooksd),""), col="red")  # add labels
+
+DFFITS <- dffits(model1)
+
+plot(DFFITS, type = "h", cex=2, main="Influential Obs. by \n DFFITS", ylab = "DFFITS", xlab = "Row Number (in training dataset)")
 abline(h = 2*sqrt((p+1)/n), lty = 2, col="red")
 abline(h = -2*sqrt((p+1)/n), lty = 2, col="red")
 text(x=1:length(DFFITS), y=DFFITS, labels=ifelse(abs(DFFITS)>2*sqrt((p+1)/n), names(DFFITS),""), col="red")
-```
 
-```{r}
-par(mfrow=c(2,3))
-
-DFBETAS <- data.frame(dfbetas(model1))
-
-plot(DFBETAS$train_gov_exp, type = "h", cex=2, main="DFBETAS (Government Expenses)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+plot(DFBETAS$train_gov_exp, type = "h", cex=2, main="DFBETAS (Gov. Exp.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$train_gov_exp), y=DFBETAS$train_gov_exp, labels=ifelse(abs(DFBETAS$train_gov_exp)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
-plot(DFBETAS$train_life_avg, type = "h", cex=2, main="DFBETAS (Life Expectancy)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+plot(DFBETAS$train_life_avg, type = "h", cex=2, main="DFBETAS (Life Exp.)", ylab = "DFBETAS", xlab = "row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$train_life_avg), y=DFBETAS$train_life_avg, labels=ifelse(abs(DFBETAS$train_life_avg)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
-plot(DFBETAS$train_sec_edu, type = "h", cex=2, main="DFBETAS (Secondary Education)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+plot(DFBETAS$train_sec_edu, type = "h", cex=2, main="DFBETAS (Sec. Edu.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$train_sec_edu), y=DFBETAS$train_sec_edu, labels=ifelse(abs(DFBETAS$train_sec_edu)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
-plot(DFBETAS$V5, type = "h", cex=2, main="DFBETAS (Political Stability)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+plot(DFBETAS$V5, type = "h", cex=2, main="DFBETAS (Pol. Stab.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$V5), y=DFBETAS$V5, labels=ifelse(abs(DFBETAS$V5)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
-plot(DFBETAS$V6, type = "h", cex=2, main="DFBETAS (Rule of Law)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+plot(DFBETAS$V6, type = "h", cex=2, main="DFBETAS (Rule of Law)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$V6), y=DFBETAS$V6, labels=ifelse(abs(DFBETAS$V6)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
-plot(DFBETAS$V7, type = "h", cex=2, main="DFBETAS (Government Effectiveness)", ylab = "DFBETAS", xlab = "Column Number (in training dataset)")
+plot(DFBETAS$V7, type = "h", cex=2, main="DFBETAS (Gov. Eff.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$V7), y=DFBETAS$V7, labels=ifelse(abs(DFBETAS$V7)>2/sqrt(n), rownames(DFBETAS),""), col="red")
-```
+
 ```
 
-```{r}
-influential <- as.numeric(names(cooksd)[(cooksd > (4/sample_size))])
+```{r, echo=FALSE}
+# influential <- as.numeric(names(cooksd)[(cooksd > (4/n))])
 
-train_df_v2 <- train_df[-influential,]
-model2 <- lm(train_gdp_grow ~., data=train_df_v2)
+# Observation 4, 24, and 32 appear in at least 5 of the 8 plots, so ~2/3rds. Appearance in more than half of the plots is convincing enough to remove them.
+train_df_v2 <- train_df[-c(4,24,32),]
+model2 <- lm(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western, data=train_df_v2)
 summary(model2)
 ```
 
-```{r}
+```{r, echo=FALSE}
 par(mar=c(2,2,2,2))
-pairs(train_df_v2)
+train_df_v2_pairs <- train_df_v2
+colnames(train_df_v2_pairs) <- c("Gov. \n Exp.", "Life Exp.", "GDP", "Sec. Edu.", "Pol. Stab.", "Rule of \n Law", "Gov. \n Eff.","Is Western")
+pairs(train_df_v2_pairs)
 ```
 
-```{r}
+```{r, echo=FALSE}
 plot(train_df_v2$train_gdp_grow ~ fitted(model2), main="Y versus Yhat", ylab="response", xlab="yhat")
 ```
 
-```{r}
+```{r, echo=FALSE}
 par(mfrow=c(2,4))
 
 plot(rstandard(model2)~fitted(model2), xlab="fitted", ylab="Residuals")
@@ -258,40 +453,76 @@ qqnorm(rstandard(model2))
 qqline(rstandard(model2))
 ```
 
+
+
 ## Third Model
 
-```{r}
+```{r, echo=FALSE}
 stats::step(model2, direction = "backward")
 ```
 
-```{r}
-model3 <- lm(train_gdp_grow ~ V7 + train_gov_exp + train_life_avg, data = train_df_v2)
-summary(model3)
+```{r, echo=FALSE}
+apss <- regsubsets(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western, data=train_df_v2, nvmax = 13)
+summary(apss)
 ```
 
-```{r}
+```{r, echo=FALSE}
+which_best <- summary(apss)
+data.frame(
+  Adj.R2 = which.max(which_best$adjr2),
+  BIC = which.min(which_best$bic),
+  R2 = which.max(which_best$rsq)
+)
+```
+
+Notice that since the max Adjusted $R^2$ score is at 8 predictors, we start to get penalized for adding more than 8 predictors, each of which don't explain an adequate amount of variation.  Thus, we will attempt to keep our model at 8 predictors or less. Since the model with maximum BIC has 5 predictors, our these will be our two candidate models that we will compare. 
+
+```{r, echo=FALSE}
+# model_r2 <- lm(train_gdp_grow ~ train_gov_exp + train_life_avg + train_is_western + V6 + V7 + train_is_western:V5 + train_is_western:V6 + train_is_western:V7, data = train_df_v2)
+# 
+# model_bic <- lm(train_gdp_grow ~ train_gov_exp:train_is_western + train_is_western:train_sec_edu + train_is_western:V5 + train_is_western:V7 + train_life_avg, data = train_df_v2)
+
+model3 <- lm(train_gdp_grow ~ train_gov_exp + V5 + V7 + train_is_western:train_sec_edu + train_is_western:V6 + train_life_avg, data = train_df_v2)
+
+summary(model3) # The effects of Secondary Education on GDP Growth Rate is higher by 0.04 if the country is not Western
+```
+
+```{r, echo=FALSE}
 train_df_v2$log_train_gov_exp <- train_df_v2$train_gov_exp^(-0.12)
 train_df_v2$log_train_life_avg <- train_df_v2$train_life_avg^1
-train_df_v2$log_V7 <- log(train_df_v2$V7)
+train_df_v2$log_V7 <- log(train_df_v2$V7) 
 model4 <- lm(train_gdp_grow ~ log_V7 + log_train_life_avg + log_train_gov_exp, data=train_df_v2)
 
 plot(train_df_v2$train_gdp_grow ~ fitted(model4), main="Y versus Yhat", ylab="response", xlab="yhat") # No change after power transform, we're sticking with the old model
 ```
 
-```{r}
+```{r, echo=FALSE}
 par(mfrow=c(2,4))
 
 plot(rstandard(model3)~fitted(model3), xlab="fitted", ylab="Residuals")
-for(i in c(1,2,7)){
+for(i in c(2,7,8)){
 plot(rstandard(model3)~train_df_v2[,i], xlab=names(train_df_v2)[i], ylab="Residuals")
 }
 qqnorm(rstandard(model3))
 qqline(rstandard(model3))
 ```
 
+```{r, echo=FALSE}
+anova(model2, model3)
+```
+
 ## Model Validation: Fitting model to test dataset
 
+
+# Conclusion and Limitations
+
+Too little observations, backwards aic only explores one possible outcome and not all, should have used corrected aic since regular aic is only good when n/p+2 <= 40, plots do not include interaction terms as well, did not calculate vif of the models 
+
+# Appendix
 
 # References
 
 [1] Barro, Robert J. "Determinants of economic growth: A cross-country empirical study." (1996).
+[2] https://datatopics.worldbank.org/world-development-indicators/
+[3] http://info.worldbank.org/governance/wgi/
+[4] https://web.archive.org/web/20070312101415/http://s02.middlebury.edu/FS056A/Herb_war/clash3.htm
