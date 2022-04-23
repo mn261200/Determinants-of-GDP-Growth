@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r, include=FALSE}
-# We load our libraries and the Toronto Open Data Portal
+# We load our libraries
 library(openintro)
 library(tidyverse)
 library(knitr)
@@ -26,31 +26,28 @@ library(MuMIn)
 
 # Introduction
 
-The "Asian Tigers", is a name that is given to the set of countries that achieved immense economic growth between the early 1960's to late 1990's. These countries are South Korea, Singapore, Hong Kong, and Taiwan. Many economists of the period were interested in the factors that led to their growth. They (along with Japan) were among the first few countries outside the Western sphere of influence to have achieved a level of wealth equivalent to (or surpassing) many Western countries. Prior to that time period, wealth was concentrated in the countries of North America and Europe due to the Industrial Revolution, with vast areas of the world living under abject poverty [source].
+In a landmark paper in 1996, Robert J. Barro conducted an empirical study on 100 countries between 1960-1990 to find the strongest determinants of economic growth among the given sample. He concluded that for a fixed value of GDP per capita (which is GDP/total population of the country), growth rate is increased by "higher initial schooling, life expectancy, lower fertility, lower government consumption, better maintenance of the rule of law, lower inflation, and improvements in the terms of trade" [1]. It's no surprise then, that economic growth is an incredibly important topic for policy-makers, especially those outside the West. A strong economic policy plan can often improve the living standards of millions. On the contrary, bad policymaking can plunge an entire nation into poverty for multiple generations. 
 
-![](countries.png)
-*A depiction of major civilizations by political scientist Samuel P. Huntington. The West is depicated in blue.*
+![A depiction of countries by GDP growth rate in 2018](countries.png)
 
-It's no surprise then, that economic growth is an incredibly important topic for policy-makers outside The West, as it is a critical determinant of the future development of their country. Generally, growth rate is measured by the percentage change of *Gross Domestic Product (GDP), which is the total value of all goods and services produced by a country*.
-
-In a landmark paper in 1996, Robert J. Barro conducted an empirical study on 100 countries between 1960-1990 to find the strongest determinants of GDP growth among the given sample. He concluded that for a fixed value of GDP per capita (which is GDP/total population of the country), growth rate is increased by "higher initial schooling, life expectancy, lower fertility, lower government consumption, better maintenance of the rule of law, lower inflation, and improvements in the terms of trade" [1]. Using data from the World Bank Development [2] and Governance Indicators [3], we attempt to conduct a similar study using Barro's criteria of economic growth. Thus, *we aim to build a linear regression model that strikes a balance between simplicity, interpretability, and accuracy. Our model should measure the rate of GDP Growth among countries using predictors similar to Barro's. Our goal is to determine the strongest drivers of economic growth between Western and non-Western countries*.
+Generally, growth rate is measured by the percentage change of *Gross Domestic Product (GDP), which is the total value of all goods and services produced by a country*. Using data from the World Bank Development [3] and Governance Indicators [4], we attempt to conduct a similar study using Barro's criteria of economic growth. Thus, *we aim to build a linear regression model that measures the rate of GDP Growth among countries using predictors similar to Barro's, Our goal is to strike a balance between simplicity, interpretability, and accuracy. *. 
 
 # Methods
 
 ## Model Violations and Diagnostics
 
-Since we are interested in seeing whether being a Western country affects GDP growth, we will be using a linear regression model with $p$ number of predictors and sample size $n$. Thus, the general form of our model is defined as: 
+We will be using a linear regression model with $p$ number of predictors and sample size $n$. Thus, the general form of our model is defined as: 
 
 $$
-\hat{Y}_{GDPGrowth} = \beta_0 + \sum\limits_{i=1}^{n} \beta_{i}x_{i} + \sum\limits_{i=1}^{n} \beta_{i}x_{i}x_{k} + \epsilon
+\hat{Y}_{GDPGrowth} = \beta_0 + \sum\limits_{i=1}^{n} \beta_{i}x_{i} + \epsilon
 $$
 
 The model can be broken down as follows:
 
-* $\hat{Y}_{GDPGrowth}$: The response value for our model
-* $x_k$: Our interaction term for some fixed $k \in \{1,...,n\}$
-* $\sum\limits_{i=1}^{n} \beta_{i}x_{i}$: The $n$ number of predictors and their corresponding coefficients in our model
+* $Y_{GDPGrowth}$: The response value for our model
+* $\sum\limits_{i=1}^{n} \beta_{i}x_{i}$: The $p$ number of predictors and their corresponding coefficients in our model
 * $\hat{\beta_{0}}$: Our intercept value
+* $\epsilon$: Our error term
 
 
 ### Assumptions of Linear Regression Models
@@ -85,7 +82,7 @@ The additional conditions are not checked using residuals, but rather with speci
 
 ### Fixing non-Homoscedasticity
 
-Violations in Homoscedasticity can often be fixed using *Variance Stabilizing Transformations (VST)*. VST's are functions that can be applied to the response of a linear model, which usually removes the dependence of error variance on the model's predictor values. In practice, this usually just means running a linear model with $log(Y)$ or $\sqrt{Y}$ as our response
+Violations in Homoscedasticity can often be fixed using *Variance Stabilizing Transformations (VST)*. VST's are functions that can be applied to the response of a linear model, which usually "removes the dependence of error variance on the model's predictor values" [2]. In practice, this usually just means running a linear model with $log(Y)$ or $\sqrt{Y}$ as our response
 
 ### Fixing non-Linearity and non-Normality
 
@@ -118,7 +115,7 @@ Note that power transformations are more of a band-aid for our model rather than
 
 ### Adjusted Coefficient of Determination
 
-The Adjusted Coefficient of Determination ($R^2_{adj}$) is often used as a way to see whether models with different numbers of predictors can explain variation in the sample better than others. It is formally represented by the equation below:
+The Adjusted Coefficient of Determination ($R^2_{adj}$) is often used as a way to see whether models with different numbers of predictors can explain variation in the sample better than others [2]. It is formally represented by the equation below:
 
 $$
 R^2_{adj} = 1-\frac{\left( \frac{RSS}{n-p-1} \right)}{\left( \frac{SST}{n-1} \right)} 
@@ -133,13 +130,44 @@ The equation can be broken down as follows:
 
 When comparing models, a higher $R^2_{adj}$ is generally better. Notice that as if $p$ increases and there is no substantial change in $RSS$, then $R^2_{adj}$ can go down for each additional predictor. This makes the metric very useful for us in comparing simple and complex models, as it penalizes models that have too many predictors given the amount of variations it explains.
 
-### Backward Selection using AIC
+### Bayesian Information Criterion (BIC) 
 
-The AIC is a model selection criteria that helps decide the best predictors for a model. Backward Selection using AIC is a type of automated model selection method that incrementally chooses the best model based on the reduction of the AIC score. 
+The BIC is a model selection criteria that attempts to balance the "goodness of fit" of a model with a penalty term for increased model complexity [2]. We will be using the BIC alongside automated model selection to find our final model.
+
+### All Possible Subsets Selection 
+
+All Possible Subsets Selection (APSS) is a type of automated selection process that helps decide the best predictors for a model [2]. For each $p$th predictor in a model, APSS attempts to find the "best" model containing $p$ predictors. The "best" model is the one that has the lowest BIC and highest $R^2_{adj}$ for each $p$ number of predictors model. 
 
 ### Variance Inflation Factor (VIF)
 
+The VIF is a measures "how inflated the standard errors/variance can be due to the relationship of one predictor to the others" [2]. This helps us see whether any of our predictors have multicollinearity. For our purposes, a $VIF \geq 5$ will indicate a sign of severe multicollinearity. We can solve this by respecifying what our model should be. 
+
 ### Techniques to find Influential Observations
+
+There are three main measures that help us classify influential observations:
+
+1. **Cook's Distance**: Used to measure the influence of a single observation on an entire regression line
+2. **DFFITS**: Measures the effect of an observation on its own fitted value for every observation in the data [2]
+3. **DFBETAS**: Measure's the effect that some observation $i$ has on the estimation of it's regression coefficient $\hat{\beta}_i$. A large DFBETAS means an observation has considerable influence on $\hat{\beta}_i$, but not necessarily on other coefficients [2]
+
+Generally, an observation will be considered influential if:
+
+1. **Cook's Distance**: $Cook's\geq50th$ percentile of $F(p+1,n-p-1)$
+2. **DFFITS**: $|DFFITS|>2\sqrt{\frac{p+1}{n}}$
+3. **DFBETAS**: $|DFBETAS|>\frac{2}{\sqrt{n}}$
+
+where $p$ is the number of predictors in our model and $n$ is the sample size
+
+## Model Validation
+
+Our dataset has a total of 88 observations, which we will split into two datasets of 44 observations each: a *training dataset* and a *test dataset*. To validate our model, we have to first conduct all of our model selection and diagnostics work on the training dataset. Once a final model has been determined, we will run this model using the test dataset, and our goal is for the resulting model to "look similar" to the one run on the training dataset.
+
+By "look similar", we mean that the final model on both the training and test datasets must have:
+
++ Minimal differences in estimated regression coefficients, as this shows us that we're estimating similar relationships between training and test sets [2]
++ The same predictors are statistically significant between both models ($\alpha = 0.05$)
++ No new and worse model violations, which shows that the model won't provide good predictions on different datasets [2]
++ Similar $R^2_{adj}$ scores, which shows us that our model has good and consistent performance in explaining variation in the data [2]
 
 ```{r, include = FALSE}
 # Importing the datasets
@@ -163,7 +191,7 @@ names(pol_stal)[names(pol_stal) == 'X'] <- 'Country.Name'
 names(rol)[names(rol) == 'X'] <- 'Country.Name'
 names(gov_eff)[names(gov_eff) == 'X'] <- 'Country.Name'
 
-# Extracting the row with Vietnam's data 
+# Removing rows related to region and columns for the year 2018
 gov_exp <- gov_exp[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
 life_male <- life_male[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
 life_female <- life_female[-c(2,4,8,37,50,62:66,69,74,75,96,99,103:106,108,111,129,135:137,140,141,143,154,157,162,171,182,184,192,198,216,218,219,231,232,237,239,241,242,250),c(1,63)]
@@ -173,6 +201,7 @@ gov_eff <- gov_eff[,c(1,117)]
 pol_stal <- pol_stal[,c(1,117)]
 rol <- rol[,c(1,117)]
 
+# Imputing avg life expectancy of male and female to get avg
 life_avg <- life_male %>% 
   mutate(X2018.2 = life_female$X2018) %>% 
   na.omit() %>% 
@@ -187,9 +216,7 @@ df <- gov_exp %>%
   merge(rol, by = "Country.Name") %>% 
   merge(gov_eff, by = "Country.Name")%>% 
   na.omit() %>% 
-  set_colnames(c("country_name","gov_exp","life_avg","gdp_grow","sec_edu","pol_stal","rol","gov_eff")) %>% 
-  mutate(is_western = ifelse(country_name %in% western$Country.Name, 1, 0)) 
-
+  set_colnames(c("country_name","gov_exp","life_avg","gdp_grow","sec_edu","pol_stal","rol","gov_eff"))
 ```
 
 ```{r, include=FALSE}
@@ -216,36 +243,22 @@ test_rol <- df[sample(45:87, 43, replace=F), 7]
 train_gov_eff <- df[sample(1:44, 44, replace=F), 8]
 test_gov_eff <- df[sample(45:87, 43, replace=F), 8]
 
-train_is_western <- df[sample(1:44, 44, replace=F), 9]
-test_is_western <- df[sample(45:87, 43, replace=F), 9]
-
 ``` 
 
 ```{r, include=FALSE}
-# train_exp_gs <- c(rep(NA,21),train_exp_gs)
-# train_fdi <- c(rep(NA,19),train_fdi)
-# train_imp_gs <- c(rep(NA,20),train_imp_gs)
-# train_merch_trade <- c(rep(NA,19),train_merch_trade)
-# train_tour_rcpt <- c(rep(NA,28),train_tour_rcpt)
-# gdp_nom <- na.omit(df$gdp_nom)
-train_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff), train_is_western))
+train_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff)))
 train_df <- data.frame(train_df)
 ``` 
 
 ```{r, include=FALSE}
-# test_exp_gs <- c(rep(NA,21), test_exp_gs)
-# test_fdi <- c(rep(NA,18), test_fdi)
-# test_imp_gs <- c(rep(NA,20), test_imp_gs)
-# test_merch_trade <- c(rep(NA,18), test_merch_trade)
-# test_tour_rcpt <- c(rep(NA,28), test_tour_rcpt)
-test_df <- data.frame(cbind(train_gov_exp, train_life_avg, train_gdp_grow, train_sec_edu, as.numeric(train_pol_stal), as.numeric(train_rol), as.numeric(train_gov_eff), train_is_western))
+test_df <- data.frame(cbind(test_gov_exp, test_life_avg, test_gdp_grow, test_sec_edu, as.numeric(test_pol_stal), as.numeric(test_rol), as.numeric(test_gov_eff)))
 ``` 
 
 # Results
 
 ## Data
 
-We will be using 6 predictors and 1 response in total for this dataset, with 3 predictors  from the World Bank Development Indicators (WDI), and 3 from the World Bank Governance Indicators (WGI). We will also interact 6 of them with a binary variable that will indicate whether a country is Western or not.
+We will be using 6 predictors and 1 response in total for this dataset, with 3 predictors  from the World Bank Development Indicators (WDI), and 3 from the World Bank Governance Indicators (WGI). To avoid the collection of time series data, we will focus on GDP Growth Rate of all countries in the year 2018. This year was not arbitrarily chosen; 2018 happens to be the most recent year which contained the most amount of data among both datasets. 
 
 | **Variable**  | **Description**                                                       	|
 |-------------------------	|-----------------------------------------------------------------------	|
@@ -255,15 +268,13 @@ We will be using 6 predictors and 1 response in total for this dataset, with 3 p
 | **Political Stability**	| An estimate of the likelihood of political instability and politically motivated violence. Values range from -2.5 to 2.5, with the former indicating complete instability and the latter indicating complete stability in governance |
 | **Rule of Law** | An estimate of the perceptions that citizens have about the laws of their country and their willingness to abide by them. Values range from -2.5 to 2.5, with the former indicating no respect for the law and the latter indicating complete obedience to the law	|
 | **Government Effectiveness** | An estimate of the perceptions that citizens have about the quality of civil and public service, the quality of policy formulations and implementations, and the governments commitments to such policies |
-| **Is/Is not Western** | A binary variable indicating whether a country is Western or not. 1 indicates it is Western, 0 indicates it is not. The countries that are considered Western are depicted in blue in Figure 1 |
 
 Table: Description of the Important Variables in WGI and WDI
 
-Our dataset has a total of 88 observations, which we will split into two datasets of 44 observations each: a *training dataset* and a *test dataset*. We will conduct all of our model selection and diagnostics work on the training dataset, and the final model will be validated on the test dataset. 
 
 ## Visualizations of Variables
 
-Plotting the scatterplot of all our variables results in the following figure below.
+Plotting the scatterplot of all our variables results in Figure 2, which is shown in the following page.
 
 ```{r, echo=FALSE, fig.cap="Scatterplot of every predictor plotted against the response"}
 par(mfrow=c(2,4))
@@ -283,56 +294,75 @@ plot(train_df$V6, train_gdp_grow, main="Rule of Law", cex.main=1.25)
 
 plot(train_df$V7, train_gdp_grow, main="Government \n Effectiveness", cex.main=1.25)
 
-plot(train_df$train_is_western, train_gdp_grow, main="Is/Is not a \n Western Country", cex.main=1.25)
-
 ``` 
 
-While our response seems normally distributed, Figure 1 suggests to us that a lot of our predictors do not have a strong linear relationship with our response. Individually, there seems to be a lot of random scatter around the center of the plots, with the exception of Government Expenses. This may present itself as a violation of Linearity and Homoscedasticity. 
-
-Government Expenses in particular may be repairable, as some it appears that there around 2-3 leverage points. We will check whether these leverage points are influential, so that we can decide whether to remove them or not.
-
-
-## Identifying and addressing Influential Observations
-
-We will utilize the tools mentioned in our Methods section to see whether the aforementioned leverage points are influential. After constructing a model containing our 6 main predictors, Figure 2 represents the results of running Cook's Distance, DFFITS, and DFBETAS on our model. 
-
-We can see that observation 24 and 32 appear in at least 4 of the 8 plots. While not a hard rule, appearing in half or more of the plots is convincing evidence for us to remove them. Additionally, due to the massive effect observations 4 and 31 has on Cook's Distance, DFFITS, and some DFBETAS, we will remove them as well. 
+While our response seems normally distributed, Figure 2 suggests to us that a lot of our predictors do not have a strong linear relationship with our response. Individually, there seems to be a lot of random scatter around the center of the plots, with the exception of Government Expenses. In particular, Government Expenses may present itself as a violation of Linearity and Homoscedasticity. 
 
 ```{r, include=FALSE}
-model1 <- lm(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western - train_is_western, data=train_df)
+model1 <- lm(train_gdp_grow ~ train_gov_exp + train_life_avg + train_sec_edu + V5 + V6 + V7, data=train_df)
 summary(model1)
 ```
 
-```{r, include=FALSE}
-vif(model1)
+
+## Verifying Assumptions
+
+Our Residuals vs. Fitted plot (see Appendix 2a) also exhibits random scatter around a linear function, which suggests to us that Condition 1 is satisfied. However, when we plot every predictor in our dataset against the other (see Appendix 1a), aside from the categorical variables, a very strong linear relationship appears between Government Expenses and every other predictor, again suggesting a violation of Linearity 
+
+Indeed, our Residuals (see Appendix 3a) show us that while most predictors seem to have random scatter, the residuals of Government Expenses seem to be heavily influenced by a handful of observations. Given that Government Expenses is numerical, it would seem like it would benefit from a Box Cox Transform. 
+
+```{r, echo=FALSE}
+train_df_transform <- train_df[-24,-3]
+
+for (i in 1:43){
+  train_df_transform$V5[i] <- train_df_transform$V5[i] + 2.6
+  train_df_transform$V6[i] <- train_df_transform$V6[i] + 2.6
+  train_df_transform$V7[i] <- train_df_transform$V7[i] + 2.6
+}
+
+p <- powerTransform(cbind(train_df_transform))
 ```
 
+```{r, echo=FALSE}
+train_df$log_train_gov_exp <- train_df$train_gov_exp^(-0.12)
+model1a <- lm(train_gdp_grow ~ log_train_gov_exp + train_life_avg + train_sec_edu + V5 + V6 + V7, data = train_df)
+
+```
+
+After applying the power transform on Government Expenses, we verify the residuals (Appendix 3b), Fitted plot (Appendix 2b), and Pairs plots (Appendix 1b) again. These results suggest to us that our model with a transformed Government Expenses predictor verifies the assumptions. 
+
+Checking for multicollinearity, we see that all our predictors have a VIF score below 2. This is a good sign for us, hence we can move on
+
+## Identifying and addressing Influential Observations
+
+We will utilize the tools mentioned in our Methods section to see whether identify any leverage points that are influential on our model. After constructing a model containing our 6 main predictors, Figure 3 represents the results of running Cook's Distance, DFFITS, and DFBETAS on our model. 
+
+We can see that observation 18, 24, and 40 appear in at least 3 of the 8 plots, with the rest of the observations appearing only once. While not a hard rule, this is convincing evidence for us to remove them. 
 
 ```{r, echo=FALSE, fig.cap="Influential observations by Cook's Distance, DFFITS and DFBETAS"}
 par(mfrow=c(2,4))
 
-DFBETAS <- data.frame(dfbetas(model1))
+DFBETAS <- data.frame(dfbetas(model1a))
 
 n <- nrow(train_df)
-p <- ncol(train_df) - 1
+p <- ncol(train_df) - 2
 
-cooksd <- cooks.distance(model1)
+cooksd <- cooks.distance(model1a)
 
 plot(cooksd, type = "h", cex=2, main="Influential Obs. by \n Cook's", ylab = "Cook's Distance", xlab = "Row Number (in training dataset)")  # plot cook's distance
 abline(h = qf(0.5, p+1, n-p-1), lty = 2, col="red")  # add cutoff line
 text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>qf(0.5, p+1, n-p-1), names(cooksd),""), col="red")  # add labels
 
-DFFITS <- dffits(model1)
+DFFITS <- dffits(model1a)
 
 plot(DFFITS, type = "h", cex=2, main="Influential Obs. by \n DFFITS", ylab = "DFFITS", xlab = "Row Number (in training dataset)")
 abline(h = 2*sqrt((p+1)/n), lty = 2, col="red")
 abline(h = -2*sqrt((p+1)/n), lty = 2, col="red")
 text(x=1:length(DFFITS), y=DFFITS, labels=ifelse(abs(DFFITS)>2*sqrt((p+1)/n), names(DFFITS),""), col="red")
 
-plot(DFBETAS$train_gov_exp, type = "h", cex=2, main="DFBETAS (Gov. Exp.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
+plot(DFBETAS$log_train_gov_exp, type = "h", cex=2, main="DFBETAS \n (Trans. Gov. Exp.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
-text(x=1:length(DFBETAS$train_gov_exp), y=DFBETAS$train_gov_exp, labels=ifelse(abs(DFBETAS$train_gov_exp)>2/sqrt(n), rownames(DFBETAS),""), col="red")
+text(x=1:length(DFBETAS$log_train_gov_exp), y=DFBETAS$log_train_gov_exp, labels=ifelse(abs(DFBETAS$log_train_gov_exp)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
 plot(DFBETAS$train_life_avg, type = "h", cex=2, main="DFBETAS (Life Exp.)", ylab = "DFBETAS", xlab = "row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
@@ -344,7 +374,7 @@ abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$train_sec_edu), y=DFBETAS$train_sec_edu, labels=ifelse(abs(DFBETAS$train_sec_edu)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
-plot(DFBETAS$V5, type = "h", cex=2, main="DFBETAS (Pol. Stab.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
+plot(DFBETAS$V5, type = "h", cex=2, main="DFBETAS \n (Pol Stab.)", ylab = "DFBETAS", xlab = "Row Number (in training dataset)")
 abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$V5), y=DFBETAS$V5, labels=ifelse(abs(DFBETAS$V5)>2/sqrt(n), rownames(DFBETAS),""), col="red")
@@ -359,130 +389,171 @@ abline(h = 2/sqrt(n), lty = 2, col="red")
 abline(h = -2/sqrt(n), lty = 2, col="red")
 text(x=1:length(DFBETAS$V7), y=DFBETAS$V7, labels=ifelse(abs(DFBETAS$V7)>2/sqrt(n), rownames(DFBETAS),""), col="red")
 
+
 ```
 
-## Verifying Assumptions
-
-Now that we've removed the influential observations, we will verify the assumptions of our model.
-
-When we plot every predictor in our dataset against the other (see Appendix 1), aside from the categorical variables, no strong linear relationships between predictors appears to exist. This suggests to us that Condition 2 appears to be satisfied. Furthermore, our Residuals vs. Fitted plot (see Appendix 2) also exhibits random scatter around a linear function, which suggests to us that Condition 1 is satisfied. 
-
-Our Residuals (see Appendix 3) show us that while most predictors seem to have random scatter, the problems discussed in Figure 1 arise again. Namely, the residuals of Government Expenses and Political Stability seem to be heavily influenced by a handful of observations. This presents itself as a possible violation of Linearity and Homoscedasticity. But it does not seem that doing Box Cox Transformations will solve the problem. Rather, Figure 1 suggests to us that we should at least attempt to check if they are influential observations before doing anything else.
-
-## High Multicollinearity
-
-An important sidenote is that with the inclusion of interaction terms, multicollinearity increases by an extraordinary amount for each of our 13 predictors. However, this is to be expected, as interaction terms are products of other predictors in our model. Additionally, we are more interested in adjusting for the effects of our interaction terms, rather than the effects themselves. If we check the VIF's of our 7 original predictors, we see that none of them are multicollineated.
 
 ```{r, echo=FALSE}
-# influential <- as.numeric(names(cooksd)[(cooksd > (4/n))])
-
-# Observation 4, 24, and 32 appear in at least 5 of the 8 plots, so ~2/3rds. Appearance in more than half of the plots is convincing enough to remove them.
-train_df_v2 <- train_df[-c(4,14,24,31,40),]
-model2 <- lm(train_gdp_grow ~ train_gov_exp*train_is_western + train_life_avg*train_is_western + train_sec_edu*train_is_western + V5*train_is_western + V6*train_is_western + V7*train_is_western, data=train_df_v2)
-summary(model2)
+train_df_v2 <- train_df[-c(18,24,40),]
+model2 <- lm(train_gdp_grow ~ log_train_gov_exp + train_life_avg + train_sec_edu + V5 + V6 + V7, data=train_df_v2)
 ```
 
+## Final Model and Model Validation
 
-## Third Model
+Once the influential observations are removed, we will run All Possible Subsets Selection on the aforementioned model. Among all possible subsets for each fixed number of predictors, the *two predictor model containing Life Expectancy and Government Effectiveness* has the highest $R^2_{adj}$. However, the BIC suggest to us that the one predictor model containing Life Expectancy is the best one. Due to the oversimplicity of the one predictor model, we've elected to keep the two predictor model instead.
+
+The Pairs plots, Fitted plot, and Residuals plots can be found in Appendix 1c, 2c, and 3c respectively. Our final model does not seem to violate any assumptions.
 
 ```{r, echo=FALSE}
-stats::step(model2, direction = "backward")
+apss <- regsubsets(train_gdp_grow ~ log_train_gov_exp + train_life_avg + train_sec_edu + V5 + V6 + V7, data=train_df_v2, nvmax = 6)
+```
+
+
+```{r, echo=FALSE}
+# Uncomment below to run. The result I mentioned above will show 
+which_best <- summary(apss)
+# data.frame(
+#   Adj.R2 = which.max(which_best$adjr2),
+#   BIC = which.min(which_best$bic),
+#   R2 = which.max(which_best$rsq)
+# )
+```
+
+
+```{r, echo=FALSE}
+# FINAL MODEL
+model3 <- lm(train_gdp_grow ~ train_life_avg + V7, data = train_df_v2)
+
+```
+
+
+```{r, echo=FALSE}
+# Running model1a and model3 on the test data.
+test_df$log_test_gov_exp <- test_df$test_gov_exp^(-0.12)
+model1a_test <- lm(test_gdp_grow ~ log_test_gov_exp + test_life_avg + test_sec_edu + V5 + V6 + V7, data = test_df)
+model3_test <- lm(test_gdp_grow ~ test_life_avg + V7, data = test_df)
 ```
 
 ```{r, echo=FALSE}
-model3 <- lm(train_gdp_grow ~ train_gov_exp:train_is_western + train_is_western:V5 + train_life_avg + train_is_western:train_sec_edu, data = train_df_v2)
+# All of this is for Table 2 below
+n1 <- nrow(test_df)
+p1 <- 2
 
-summary(model3) # The effects of Secondary Education on GDP Growth Rate is higher by 0.04 if the country is not Western
+vif1 <- max(vif(model1a))
+tvif1 <- max(vif(model1a_test))
+vif2 <- max(vif(model3))
+tvif2 <- max(vif(model3_test))
+
+D1 <- length(which(cooks.distance(model1a) > qf(0.5, p+1, n-p-1)))
+tD1 <- length(which(cooks.distance(model1a_test) > qf(0.5, p+1, n-p-1)))
+D2 <- length(which(cooks.distance(model3) > qf(0.5, p1+1, n1-p1-1)))
+tD2 <- length(which(cooks.distance(model3_test) > qf(0.5, p1+1, n1-p1-1)))
+
+fits1 <- length(which(abs(dffits(model1a)) > 2*sqrt((p+1)/n)))
+tfits1 <- length(which(abs(dffits(model1a_test)) > 2*sqrt((p+1)/n)))
+fits2 <- length(which(abs(dffits(model3)) > 2*sqrt((p1+1)/n1)))
+tfits2 <- length(which(abs(dffits(model3_test)) > 2*sqrt((p1+1)/n1)))
+
+coefs1 <- round(summary(model1a)$coefficients[,1], 3)
+ses1 <- 2*round(summary(model1a)$coefficients[,2], 3)
+
+tcoefs1 <- round(summary(model1a_test)$coefficients[,1], 3)
+tses1 <- 2*round(summary(model1a_test)$coefficients[,2], 3)
+
+coefs2 <- round(summary(model3)$coefficients[,1], 3)
+ses2 <- 2*round(summary(model3)$coefficients[,2], 3)
+
+tcoefs2 <- round(summary(model3_test)$coefficients[,1], 3)
+tses2 <- 2*round(summary(model3_test)$coefficients[,2], 3)
+
 ```
 
+To validate the model, we run through the same process as we did before, but for the test dataset. The results of this process, in comparison with the model built off our training dataset, is summarized in the table below:
+
+Characteristic | First Model (Train) | First Model (Test) | Final Model (Train) | Final Model (Test)
+---------------|----------------|---------------|-----------------|---------------
+Largest VIF value | `r vif1` | `r tvif1` | `r vif2` | `r tvif2`
+\# Cook's D | `r D1` | `r tD1` | `r D2` | `r tD2`
+\# DFFITS | `r fits1` | `r tfits1` | `r fits2` | `r tfits2`
+Adj. $R^2$ | -0.030 | -0.005 | 0.106 | 0.034
+Violations | slight linearity | slight linearity | none | none
+---------------|----------------|---------------|-----------------|---------------
+Intercept | `r coefs1[1]` $\pm$ `r ses1[1]` | `r tcoefs1[1]` $\pm$ `r tses1[1]` |`r coefs2[1]` $\pm$ `r ses2[1]`  | `r tcoefs2[1]` $\pm$ `r tses2[1]`
+Gov. Exp.  | `r coefs1[2]` $\pm$ `r ses1[2]` |`r tcoefs1[2]` $\pm$ `r tses1[2]` | - | - 
+Life Exp.  | `r coefs1[3]` $\pm$ `r ses1[3]` (\.) |`r tcoefs1[3]` $\pm$ `r tses1[3]` | `r coefs2[2]` $\pm$ `r ses2[2]` (\*) | `r tcoefs2[2]` $\pm$ `r tses2[2]`
+Sec. Edu.  | `r coefs1[4]` $\pm$ `r ses1[4]` | `r tcoefs1[4]` $\pm$ `r tses1[4]`| - | -
+Pol. Stab.  | `r coefs1[5]` $\pm$ `r ses1[5]` | `r tcoefs1[5]` $\pm$ `r tses1[5]`  | - | -
+Rule of Law  | `r coefs1[6]` $\pm$ `r ses1[6]` | `r tcoefs1[6]` $\pm$ `r tses1[6]`  | - | -
+Gov. Eff. | `r coefs1[7]` $\pm$ `r ses1[7]` | `r tcoefs1[7]` $\pm$ `r tses1[7]`  |`r coefs2[3]` $\pm$ `r ses2[3]`  | `r tcoefs2[3]` $\pm$ `r tses2[3]` (\.)
+
+Table: Summary table of our models
+
+In short, it would seem that neither of our models look completely similar to how it performed with the training dataset. While there are minimal distances within the estimated regression coefficients, we encounter fairly different $R^2_{adj}$ scores, in particular between the Final Model Training with Final Model Test. 
+
+# Discussion and Limitations
+
+There are several key takeaways from this report. If we interpret the results of the final model, we will see that for every additional percent in GDP Growth Rate, Average Life Expectancy is expected to increase by 0.038-0.128 years, or 4-6 weeks. Similarly, we also see a positive increase in Government Efficiency, indicating that a government that drafts and enforces effective policies will usually see enhanced economic growth. In general, there is a positive correlation between GDP Growth Rate, Life Expectancy, and Government Efficiency. Our model is also incredibly simple and interpretable, and policymakers will have no trouble understanding what they need to do to achieve their growth goals. 
+
+What we sacrificed in return, was model accuracy and legitimacy. For one, we were nowhere near the recommended amount of 120 observations, as only 88 countries/observations had all the relevant data for our analysis. Because of this, we did not have the freedom to focus on a particular region. It is important to keep in mind that there are a million and one factors that lead to economic growth for every single country in the world. Thus, it would make sense why there was so much scatter in Figure 2: there is just too much diversity in what causes economic growth. Beyond that, our model is both invalid and also just too simple, so much so that it sacrifices accuracy as demonstrated by our $R^2_{adj}$ score. The varying $R^2_{adj}$ scores between Final Model Training and Final Model Test suggests to us that the model is not consistent in its predictions, hence its results are likely not valid. 
+
+But this is also because we built the model off the problematic data to begin with. In short, we were limited by the lack of data and did not have a strong enough focus on what region of the world we were interested in (due to not having region-specific data as well).
+
+\newpage
+# Appendix
+
+Appendix 1a:
+
+```{r, echo=FALSE}
+par(mar=c(2,2,2,2))
+train_df_pairs <- train_df[,-c(3,7)]
+colnames(train_df_pairs) <- c("Gov. \n Exp.", "Life Exp.", "Sec. Edu.", "Pol. Stab", "Rule of \n Law", "Gov. \n Eff.")
+pairs(train_df_pairs)
+```
+
+\newpage
+Appendix 1b:
+
+```{r, echo=FALSE}
+par(mar=c(2,2,2,2))
+train_df_pairs_2 <- train_df[,-c(1,3)]
+colnames(train_df_pairs) <- c("Life Exp.", "Sec. Edu.", "Pol. Stab.", "Rule of \n Law", "Gov. \n Eff.","Trans. \n Gov. Exp.")
+pairs(train_df_pairs)
+```
+
+\newpage
+Appendic 1c:
+
+```{r, echo=FALSE}
+par(mar=c(2,2,2,2))
+train_df_v2_pairs <- train_df_v2[,c(2,7)]
+colnames(train_df_v2_pairs) <- c("Life \n Expectancy", "Government \n Effectiveness.")
+pairs(train_df_v2_pairs)
+```
+
+\newpage
+Appendix 2a:
+
+```{r, echo=FALSE}
+plot(train_df$train_gdp_grow ~ fitted(model1), main="Response vs. Fitted values", ylab="response", xlab="Fitted values for First Model")
+```
+
+\newpage
+Appendix 2b:
+
+```{r, echo=FALSE}
+plot(train_df$train_gdp_grow ~ fitted(model1a), main="Y versus Yhat", ylab="response", xlab="yhat")
+```
+
+\newpage
+Appendix 2c:
 
 ```{r, echo=FALSE}
 plot(train_df_v2$train_gdp_grow ~ fitted(model3), main="Y versus Yhat", ylab="response", xlab="yhat")
 ```
 
-```{r, echo=FALSE}
-par(mfrow=c(2,4))
+\newpage
+Appendix 3a:
 
-plot(rstandard(model3)~train_df_v2$train_gov_exp, main="Government Expenses", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model3)~train_df_v2$train_life_avg, main="Life Expectancy", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model3)~train_df_v2$train_sec_edu, main="Secondary Education", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model3)~train_df_v2$V5, main="Political Stability", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model3)~train_df_v2$V6, main="Rule of Law", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model3)~train_df_v2$V7, main="Government Effectiveness", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model3)~train_df_v2$train_is_western, main="Is Western", cex.main=1.25, ylab="Residuals")
-
-qqnorm(rstandard(model3))
-qqline(rstandard(model3))
-```
-
-```{r, echo=FALSE}
-boxCox(model3)
-train_df_v2_transform <- train_df_v2[,-c(3)]
-
-for (i in 1:39){
-  train_df_v2_transform$V5[i] <- train_df_v2_transform$V5[i] + 2.6
-  train_df_v2_transform$V6[i] <- train_df_v2_transform$V6[i] + 2.6
-  train_df_v2_transform$V7[i] <- train_df_v2_transform$V7[i] + 2.6
-  train_df_v2_transform$train_is_western[i] <- train_df_v2_transform$train_is_western[i] + 0.5
-}
-
-p <- powerTransform(cbind(train_df_v2_transform))
-summary(p)
-```
-
-```{r, echo=FALSE}
-
-train_df_v2$log_train_gov_exp <- log(train_df_v2$train_gov_exp)
-model4 <- lm(train_gdp_grow ~ log_train_gov_exp + V5 + V7 + train_is_western:train_sec_edu + train_is_western:V6 + train_life_avg, data = train_df_v2)
-
-plot(train_df_v2$train_gdp_grow ~ fitted(model4), main="Y versus Yhat", ylab="response", xlab="yhat") # No change after power transform, we're sticking with the old model
-```
-
-
-```{r, echo=FALSE}
-anova(model2, model3)
-```
-
-## Model Validation: Fitting model to test dataset
-
-
-# Conclusion and Limitations
-
-Too little observations, backwards aic only explores one possible outcome and not all, should have used corrected aic since regular aic is only good when n/p+2 <= 40, plots do not include interaction terms as well, did not calculate vif of the models 
-
-# Appendix
-
-Appendix 1:
-```{r, echo=FALSE, fig.cap="Pairs plot of all predictors in our dataset"}
-par(mar=c(2,2,2,2))
-train_df_pairs <- train_df[,-3]
-colnames(train_df_pairs) <- c("Gov. \n Exp.", "Life Exp.", "Sec. Edu.", "Pol. Stab", "Rule of \n Law", "Gov. \n Eff.","Is Western")
-pairs(train_df_pairs)
-```
-
-```{r, echo=FALSE}
-par(mar=c(2,2,2,2))
-train_df_v2_pairs <- train_df_v2
-colnames(train_df_v2_pairs) <- c("Gov. \n Exp.", "Life Exp.", "GDP", "Sec. Edu.", "Pol. Stab.", "Rule of \n Law", "Gov. \n Eff.","Is Western")
-pairs(train_df_v2_pairs)
-```
-
-Appendix 2:
-```{r, echo=FALSE}
-plot(train_df$train_gdp_grow ~ fitted(model1), main="Response vs. Fitted values", ylab="response", xlab="Fitted values for First Model")
-```
-
-```{r, echo=FALSE}
-plot(train_df_v2$train_gdp_grow ~ fitted(model2), main="Y versus Yhat", ylab="response", xlab="yhat")
-```
-
-Appendix 3:
 ```{r, echo=FALSE}
 par(mfrow=c(2,4))
 
@@ -498,36 +569,54 @@ plot(rstandard(model1)~train_df$V6, xlab="Rule of Law", cex.main=1.25, ylab="Res
 
 plot(rstandard(model1)~train_df$V7, xlab="Government Effectiveness", cex.main=1.25, ylab="Residuals")
 
-plot(rstandard(model1)~train_df$train_is_western, xlab="Is/Is not a \n Western Country", cex.main=1.25, ylab="Residuals")
-
 qqnorm(rstandard(model1))
 qqline(rstandard(model1))
 ```
 
+\newpage
+Appendix 3b
+
 ```{r, echo=FALSE}
 par(mfrow=c(2,4))
 
-plot(rstandard(model2)~train_df_v2$train_gov_exp, main="Government Expenses", cex.main=1.25, ylab="Residuals")
+plot(rstandard(model1a)~train_df$log_train_gov_exp, main="Trans. \n Government Expenses", cex.main=1.25, ylab="Residuals")
 
-plot(rstandard(model2)~train_df_v2$train_life_avg, main="Life Expectancy", cex.main=1.25, ylab="Residuals")
+plot(rstandard(model1a)~train_df$train_life_avg, main="Life Expectancy", cex.main=1.25, ylab="Residuals")
 
-plot(rstandard(model2)~train_df_v2$train_sec_edu, main="Secondary Education", cex.main=1.25, ylab="Residuals")
+plot(rstandard(model1a)~train_df$train_sec_edu, main="Secondary Education", cex.main=1.25, ylab="Residuals")
 
-plot(rstandard(model2)~train_df_v2$V5, main="Political Stability", cex.main=1.25, ylab="Residuals")
+plot(rstandard(model1a)~train_df$V5, main="Political Stability", cex.main=1.25, ylab="Residuals")
 
-plot(rstandard(model2)~train_df_v2$V6, main="Rule of Law", cex.main=1.25, ylab="Residuals")
+plot(rstandard(model1a)~train_df$V6, main="Rule of Law", cex.main=1.25, ylab="Residuals")
 
-plot(rstandard(model2)~train_df_v2$V7, main="Government Effectiveness", cex.main=1.25, ylab="Residuals")
-
-plot(rstandard(model2)~train_df_v2$train_is_western, main="Is Western", cex.main=1.25, ylab="Residuals")
+plot(rstandard(model1a)~train_df$V7, main="Government Effectiveness", cex.main=1.25, ylab="Residuals")
 
 qqnorm(rstandard(model2))
 qqline(rstandard(model2))
 ```
 
+\newpage
+Appendix 3c:
+
+```{r, echo=FALSE}
+par(mfrow=c(1,3))
+
+plot(rstandard(model3)~train_df_v2$train_life_avg, main="Life Avg.", cex.main=1.25, ylab="Residuals")
+
+plot(rstandard(model3)~train_df_v2$V7, main="Gov. Eff.", cex.main=1.25, ylab="Residuals")
+
+qqnorm(rstandard(model3))
+qqline(rstandard(model3))
+```
+
 # References
 
-[1] Barro, Robert J. "Determinants of economic growth: A cross-country empirical study." (1996).
-[2] https://datatopics.worldbank.org/world-development-indicators/
-[3] http://info.worldbank.org/governance/wgi/
-[4] https://web.archive.org/web/20070312101415/http://s02.middlebury.edu/FS056A/Herb_war/clash3.htm
+[1] Barro, Robert J. *Determinants of economic growth: A cross-country empirical study.* (1996). Retrieved April 15, 2022.
+
+[2] Daignault, Katherine. *STA302 Lectures* . Retrieved April 20, 2022.
+
+Association of Tennis Professionals, *John Isner: Overview*, ATP World Tour, Retrieved December 19, 2021, from [https://www.atptour.com/en/players/john-isner/i186/overview](https://www.atptour.com/en/players/john-isner/i186/overview).
+
+[3] World Bank Group. *World Bank Development Indicators*. Retrieved April 16, 2022, from [https://datatopics.worldbank.org/world-development-indicators/] (https://datatopics.worldbank.org/world-development-indicators/).
+
+[4] World Bank Group. *World Bank Governance Indicators*. Retrieved April 16, 2022, from [http://info.worldbank.org/governance/wgi/](http://info.worldbank.org/governance/wgi/).
